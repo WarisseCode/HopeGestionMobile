@@ -1,0 +1,127 @@
+{
+  "user": {
+    "firstName": "Awa",
+    "lastName": "Sarr",
+    "role": "Gestionnaire"
+  },
+  "kpis": {
+    "encaissements": { "value": "2,45 M", "note": "+12% ce mois", "positive": true },
+    "depenses": { "value": "890 K", "note": "24% du CA", "positive": false },
+    "impayes": { "value": "320 K", "note": "3 factures", "positive": false }
+  },
+  "flux": {
+    "net": "+1 560 000 F",
+    "days": [
+      { "day": 12, "in": 58, "out": 35 },
+      { "day": 13, "in": 45, "out": 20 },
+      { "day": 14, "in": 72, "out": 40 },
+      { "day": 15, "in": 54, "out": 30 },
+      { "day": 16, "in": 78, "out": 45 },
+      { "day": 17, "in": 61, "out": 32 },
+      { "day": 18, "in": 48, "out": 25 }
+    ]
+  },
+  "quickActions": [
+    { "id": "property", "label": "Bien", "icon": "Building2" },
+    { "id": "tenant", "label": "Locataire", "icon": "UserPlus" },
+    { "id": "invoice", "label": "Facture", "icon": "FileText" },
+    { "id": "receipt", "label": "Quittance", "icon": "ReceiptText" },
+    { "id": "contract", "label": "Contrat", "icon": "FileSignature" },
+    { "id": "inventory", "label": "État des lieux", "icon": "Camera" }
+  ],
+  "recentRentPayments": [
+    {
+      "property": "Apt. 12 — Mbour",
+      "type": "Appartement T3 · 86 m²",
+      "tenant": "Yacine Diop",
+      "amount": "185 000 F",
+      "status": "Payé",
+      "image": "property-mbour.jpg"
+    },
+    {
+      "property": "Duplex — Almadies",
+      "type": "Villa F5 · 220 m²",
+      "tenant": "Fatou Ndiaye",
+      "amount": "450 000 F",
+      "status": "En attente",
+      "image": "property-almadies.jpg"
+    },
+    {
+      "property": "Local — Plateau",
+      "type": "Local commercial · 65 m²",
+      "tenant": "M. Camara",
+      "amount": "320 000 F",
+      "status": "Impayé",
+      "image": "property-plateau.jpg"
+    }
+  ],
+  "properties": [
+    {
+      "id": "prop-1",
+      "name": "Apt. 12 — Mbour",
+      "type": "Appartement T3 · 86 m²",
+      "price": "185 000 F / mois",
+      "status": "OCCUPÉ",
+      "image": "property-mbour.jpg"
+    },
+    {
+      "id": "prop-2",
+      "name": "Duplex — Almadies",
+      "type": "Villa F5 · 220 m²",
+      "price": "450 000 F / mois",
+      "status": "OCCUPÉ",
+      "image": "property-almadies.jpg"
+    },
+    {
+      "id": "prop-3",
+      "name": "Local — Plateau",
+      "type": "Local commercial · 65 m²",
+      "price": "320 000 F / mois",
+      "status": "VACANT",
+      "image": "property-plateau.jpg"
+    }
+  ],
+  "contacts": [
+    { "id": "c1", "initials": "YD", "name": "Yacine Diop", "info": "Locataire · Apt. 12", "type": "tenant" },
+    { "id": "c2", "initials": "FN", "name": "Fatou Ndiaye", "info": "Locataire · Duplex", "type": "tenant" },
+    { "id": "c3", "initials": "MC", "name": "Mamadou Camara", "info": "Propriétaire · 4 biens", "type": "owner" },
+    { "id": "c4", "initials": "AS", "name": "Aïcha Sarr", "info": "Propriétaire · 2 biens", "type": "owner" }
+  ],
+  "finances": {
+    "solde": "1 560 000 F",
+    "entrees": "+2,45 M",
+    "sorties": "−890 K",
+    "operations": [
+      { "title": "Loyer reçu", "sub": "Yacine Diop", "amount": "+185 000 F", "positive": true, "icon": "ArrowDownLeft" },
+      { "title": "Réparation plomberie", "sub": "Apt. 12", "amount": "-45 000 F", "positive": false, "icon": "ArrowUpRight" },
+      { "title": "Loyer reçu", "sub": "Fatou Ndiaye", "amount": "+450 000 F", "positive": true, "icon": "ArrowDownLeft" }
+    ]
+  },
+  "documents": [
+    { "title": "Quittance · Avril 2026", "sub": "Apt. 12 — Mbour", "state": "Générée", "icon": "ReceiptText" },
+    { "title": "Contrat de location", "sub": "Duplex — Almadies", "state": "Signé", "icon": "FileCheck2" },
+    { "title": "Facture HG-2026-041", "sub": "Local — Plateau", "state": "À relancer", "icon": "FileText" }
+  ],
+  "propertyForm": {
+    "steps": ["Identité", "Localisation", "Gestion", "Médias"],
+    "types": ["Immeuble collectif", "Maison individuelle", "Local commercial", "Terrain"],
+    "countries": ["Bénin", "Sénégal", "Togo", "Côte d’Ivoire"],
+    "owners": ["Mamadou Camara", "Aïcha Sarr", "Awa Sarr"],
+    "managers": ["Warisse OTCHADE", "Géré directement par le propriétaire"],
+    "statuses": ["Actif — Bien opérationnel", "Inactif", "Archivé"]
+  },
+  "tenantForm": {
+    "steps": ["Identité", "Documents", "Finances", "Confirmation"],
+    "profiles": ["Locataire", "Acheteur", "Prospect"],
+    "nationalities": ["Béninoise", "Sénégalaise", "Togolaise", "Ivoirienne"],
+    "idTypes": ["Carte Nationale d’Identité (CNI)", "Passeport", "Permis de conduire"],
+    "owners": ["OJO Gael", "Mamadou Camara", "Aïcha Sarr"],
+    "paymentOptions": [
+      { "value": "Mobile Money", "note": "MTN, Moov, Wave", "icon": "Phone" },
+      { "value": "Espèces", "note": "Paiement cash", "icon": "Banknote" },
+      { "value": "Virement", "note": "Transfert bancaire", "icon": "ArrowRight" },
+      { "value": "Chèque", "note": "Chèque bancaire", "icon": "CreditCard" }
+    ],
+    "statuses": ["Actif — Profil opérationnel"]
+  }
+}
