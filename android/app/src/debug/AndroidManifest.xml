@@ -4,4 +4,10 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Autorise le trafic HTTP en clair UNIQUEMENT dans ce manifest debug,
+         pour joindre le backend local (http://10.0.2.2:5001) depuis l'émulateur.
+         Fusionné par le merger de manifestes dans les builds debug seulement :
+         absent du manifest main -> le build release reste en HTTPS strict. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

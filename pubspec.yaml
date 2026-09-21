@@ -36,9 +36,21 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^8.2.1
   flutter_lucide: ^1.46.0
+
+  # Client HTTP pour brancher le backend HopeGestionV2 (voir lib/core/network/).
+  dio: ^5.11.1
+  # Stockage chiffré des tokens (Keystore Android / Keychain iOS). v11+ requiert
+  # minSdk 24, déjà satisfait par le minSdk par défaut de ce projet (flutter.minSdkVersion).
+  flutter_secure_storage: ^11.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # Double officiel de flutter_secure_storage pour les tests (voir
+  # test/core/network/token_storage_test.dart) : dépendance transitive de
+  # flutter_secure_storage, déclarée ici explicitement car importée
+  # directement dans les tests.
+  flutter_secure_storage_platform_interface: ^2.1.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

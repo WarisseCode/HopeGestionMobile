@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# État local de Claude Code (propre à la machine, ne doit jamais être versionné).
+# Seul fichier existant à ce jour ; tout futur fichier d'état local sous .claude/
+# (verrous, cache, sessions...) doit être ajouté ici au même titre.
+.claude/scheduled_tasks.lock

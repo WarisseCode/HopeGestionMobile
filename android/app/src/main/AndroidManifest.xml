@@ -1,8 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Requis pour tous les appels réseau (dio) en debug, profile ET release.
+         Le template Flutter ne met l'INTERNET que dans les manifests debug/profile,
+         ce qui casserait les appels API en build release. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Sauvegarde Android désactivée : recommandation actuelle du README
+         flutter_secure_storage 11.x (section "Disabling Auto Backup"). Sans
+         cela, Auto Backup peut restaurer les clés chiffrées (Keystore) sur
+         un autre appareil sans pouvoir déchiffrer les données déjà
+         sauvegardées (`InvalidKeyException`), et un token restauré ainsi
+         serait un vecteur de fuite. L'app n'a pas d'autre donnée locale à
+         sauvegarder pour le moment, donc désactiver `allowBackup`
+         globalement (plutôt qu'exclure finement les prefs via
+         `fullBackupContent`/`dataExtractionRules`) est le choix le plus
+         simple et le plus sûr. -->
     <application
         android:label="hope_gestion_mobile"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
