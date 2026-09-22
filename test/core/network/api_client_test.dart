@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
@@ -9,47 +6,7 @@ import 'package:hope_gestion_mobile/core/network/api_client.dart';
 import 'package:hope_gestion_mobile/core/network/api_exception.dart';
 import 'package:hope_gestion_mobile/core/network/token_storage.dart';
 
-// Pas de package de mock HTTP (`http_mock_adapter` notamment, écarté en
-// phase 2.1) : un HttpClientAdapter factice, piloté par une closure, suffit
-// et évite une dépendance supplémentaire pour un besoin aussi simple.
-class _FakeAdapter implements HttpClientAdapter {
-  _FakeAdapter(this._responder);
-
-  final Future<ResponseBody> Function(RequestOptions options) _responder;
-
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) => _responder(options);
-
-  @override
-  void close({bool force = false}) {}
-}
-
-ResponseBody _jsonResponse(Map<String, dynamic> body, int statusCode) {
-  return ResponseBody.fromString(
-    jsonEncode(body),
-    statusCode,
-    headers: {
-      Headers.contentTypeHeader: [Headers.jsonContentType],
-    },
-  );
-}
-
-/// `Future.catchError` exige que le handler renvoie une valeur du même type
-/// que le Future d'origine (`Response<T>`) : impossible d'y renvoyer
-/// l'exception elle-même. Ce petit helper capture proprement succès/échec
-/// dans un seul type dynamique, pour un `Future.wait` de requêtes dont
-/// certaines doivent échouer.
-Future<Object?> _captureError(Future<Object?> Function() action) async {
-  try {
-    return await action();
-  } catch (e) {
-    return e;
-  }
-}
+import '../../support/fake_http_adapter.dart';
 
 void main() {
   // TokenStorage a besoin d'un double du plugin flutter_secure_storage (voir
@@ -68,9 +25,9 @@ void main() {
 
     String? seenAuthHeader;
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         seenAuthHeader = options.headers['Authorization'] as String?;
-        return _jsonResponse({'ok': true}, 200);
+        return jsonResponse({'ok': true}, 200);
       });
 
     final apiClient = ApiClient(tokenStorage: tokenStorage, dio: dio);
@@ -88,21 +45,21 @@ void main() {
 
     var resourceCalls = 0;
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         resourceCalls++;
         final authHeader = options.headers['Authorization'];
         if (authHeader == 'Bearer old-access') {
-          return _jsonResponse({'message': 'unauthorized'}, 401);
+          return jsonResponse({'message': 'unauthorized'}, 401);
         }
         expect(authHeader, 'Bearer new-access');
-        return _jsonResponse({'ok': true}, 200);
+        return jsonResponse({'ok': true}, 200);
       });
 
     final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         expect(options.path, '/auth/mobile/refresh');
         expect((options.data as Map)['refreshToken'], 'old-refresh');
-        return _jsonResponse({
+        return jsonResponse({
           'token': 'new-access',
           'refreshToken': 'new-refresh',
         }, 200);
@@ -129,23 +86,23 @@ void main() {
     );
 
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         // Laisse les trois requêtes atteindre le 401 avant que le refresh
         // (plus bas) ne se termine.
         await Future<void>.delayed(const Duration(milliseconds: 5));
         final authHeader = options.headers['Authorization'];
         if (authHeader == 'Bearer old-access') {
-          return _jsonResponse({}, 401);
+          return jsonResponse({}, 401);
         }
-        return _jsonResponse({'path': options.path}, 200);
+        return jsonResponse({'path': options.path}, 200);
       });
 
     var refreshCalls = 0;
     final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         refreshCalls++;
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        return _jsonResponse({
+        return jsonResponse({
           'token': 'new-access',
           'refreshToken': 'new-refresh',
         }, 200);
@@ -178,14 +135,14 @@ void main() {
 
     var resourceCalls = 0;
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         resourceCalls++;
-        return _jsonResponse({'message': 'unauthorized'}, 401);
+        return jsonResponse({'message': 'unauthorized'}, 401);
       });
 
     final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
-        return _jsonResponse({
+      ..httpClientAdapter = FakeAdapter((options) async {
+        return jsonResponse({
           'message': 'Refresh token invalide ou expiré.',
         }, 401);
       });
@@ -226,18 +183,18 @@ void main() {
 
       var resourceCalls = 0;
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           resourceCalls++;
-          return _jsonResponse({}, 401);
+          return jsonResponse({}, 401);
         });
 
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           // Déconnexion déclenchée par l'utilisateur PENDANT l'appel réseau
           // de refresh. Le refresh réussit quand même côté serveur — c'est
           // le client qui doit ignorer son résultat.
           await tokenStorage.clear();
-          return _jsonResponse({
+          return jsonResponse({
             'token': 'new-access',
             'refreshToken': 'new-refresh',
           }, 200);
@@ -274,16 +231,16 @@ void main() {
 
     var resourceCalls = 0;
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         resourceCalls++;
-        return _jsonResponse({}, 401); // toujours 401, même après le rejeu
+        return jsonResponse({}, 401); // toujours 401, même après le rejeu
       });
 
     var refreshCalls = 0;
     final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         refreshCalls++;
-        return _jsonResponse({
+        return jsonResponse({
           'token': 'new-access',
           'refreshToken': 'new-refresh',
         }, 200);
@@ -325,7 +282,7 @@ void main() {
 
       var refreshCalls = 0;
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           final authHeader = options.headers['Authorization'];
           if (authHeader == 'Bearer old-access') {
             // Simule un refresh déclenché par une AUTRE requête, qui se
@@ -337,16 +294,16 @@ void main() {
               ),
               tokenStorage.generation,
             );
-            return _jsonResponse({}, 401);
+            return jsonResponse({}, 401);
           }
           expect(authHeader, 'Bearer new-access');
-          return _jsonResponse({'ok': true}, 200);
+          return jsonResponse({'ok': true}, 200);
         });
 
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           refreshCalls++;
-          return _jsonResponse({
+          return jsonResponse({
             'token': 'should-not-be-used',
             'refreshToken': 'should-not-be-used',
           }, 200);
@@ -377,12 +334,12 @@ void main() {
       );
 
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
-          return _jsonResponse({}, 401);
+        ..httpClientAdapter = FakeAdapter((options) async {
+          return jsonResponse({}, 401);
         });
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
-          return _jsonResponse({
+        ..httpClientAdapter = FakeAdapter((options) async {
+          return jsonResponse({
             'message': 'Trop de requêtes.',
           }, 429);
         });
@@ -423,11 +380,11 @@ void main() {
       );
 
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
-          return _jsonResponse({}, 401);
+        ..httpClientAdapter = FakeAdapter((options) async {
+          return jsonResponse({}, 401);
         });
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           throw DioException(
             requestOptions: options,
             type: DioExceptionType.connectionError,
@@ -466,11 +423,11 @@ void main() {
       );
 
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
-          return _jsonResponse({}, 401);
+        ..httpClientAdapter = FakeAdapter((options) async {
+          return jsonResponse({}, 401);
         });
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           throw DioException(
             requestOptions: options,
             type: DioExceptionType.connectionTimeout,
@@ -511,14 +468,14 @@ void main() {
         );
 
         final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-          ..httpClientAdapter = _FakeAdapter((options) async {
+          ..httpClientAdapter = FakeAdapter((options) async {
             await Future<void>.delayed(const Duration(milliseconds: 5));
-            return _jsonResponse({}, 401);
+            return jsonResponse({}, 401);
           });
         final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-          ..httpClientAdapter = _FakeAdapter((options) async {
+          ..httpClientAdapter = FakeAdapter((options) async {
             await Future<void>.delayed(const Duration(milliseconds: 20));
-            return _jsonResponse({
+            return jsonResponse({
               'message': 'Refresh token invalide ou expiré.',
             }, 401);
           });
@@ -533,9 +490,9 @@ void main() {
         addTearDown(subscription.cancel);
 
         final results = await Future.wait<Object?>([
-          _captureError(() => apiClient.request<dynamic>('/a')),
-          _captureError(() => apiClient.request<dynamic>('/b')),
-          _captureError(() => apiClient.request<dynamic>('/c')),
+          captureError(() => apiClient.request<dynamic>('/a')),
+          captureError(() => apiClient.request<dynamic>('/b')),
+          captureError(() => apiClient.request<dynamic>('/c')),
         ]);
 
         for (final result in results) {
@@ -561,16 +518,16 @@ void main() {
       );
 
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
-          return _jsonResponse({
+        ..httpClientAdapter = FakeAdapter((options) async {
+          return jsonResponse({
             'message': 'Email ou mot de passe incorrect.',
           }, 401);
         });
       var refreshCalls = 0;
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           refreshCalls++;
-          return _jsonResponse({'token': 'x', 'refreshToken': 'y'}, 200);
+          return jsonResponse({'token': 'x', 'refreshToken': 'y'}, 200);
         });
 
       final apiClient = ApiClient(
@@ -610,11 +567,11 @@ void main() {
 
       var authorizationHeaderPresent = true;
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           authorizationHeaderPresent = options.headers.containsKey(
             'Authorization',
           );
-          return _jsonResponse({
+          return jsonResponse({
             'token': 'a',
             'refreshToken': 'b',
             'role': 'gestionnaire',
@@ -643,18 +600,18 @@ void main() {
 
       var refreshCalls = 0;
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           final authHeader = options.headers['Authorization'];
           if (authHeader == 'Bearer old-access') {
-            return _jsonResponse({}, 401);
+            return jsonResponse({}, 401);
           }
           expect(authHeader, 'Bearer new-access');
-          return _jsonResponse({'email': 'user@example.com'}, 200);
+          return jsonResponse({'email': 'user@example.com'}, 200);
         });
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           refreshCalls++;
-          return _jsonResponse({
+          return jsonResponse({
             'token': 'new-access',
             'refreshToken': 'new-refresh',
           }, 200);
@@ -683,18 +640,18 @@ void main() {
 
       var refreshCalls = 0;
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           final authHeader = options.headers['Authorization'];
           if (authHeader == 'Bearer old-access') {
-            return _jsonResponse({}, 401);
+            return jsonResponse({}, 401);
           }
           expect(authHeader, 'Bearer new-access');
-          return _jsonResponse({'message': 'Profil complété avec succès.'}, 200);
+          return jsonResponse({'message': 'Profil complété avec succès.'}, 200);
         });
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           refreshCalls++;
-          return _jsonResponse({
+          return jsonResponse({
             'token': 'new-access',
             'refreshToken': 'new-refresh',
           }, 200);
@@ -726,14 +683,14 @@ void main() {
       );
 
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
-          return _jsonResponse({'message': 'unauthorized'}, 401);
+        ..httpClientAdapter = FakeAdapter((options) async {
+          return jsonResponse({'message': 'unauthorized'}, 401);
         });
       var refreshCalls = 0;
       final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-        ..httpClientAdapter = _FakeAdapter((options) async {
+        ..httpClientAdapter = FakeAdapter((options) async {
           refreshCalls++;
-          return _jsonResponse({
+          return jsonResponse({
             'token': 'new-access',
             'refreshToken': 'new-refresh',
           }, 200);
@@ -768,19 +725,19 @@ void main() {
 
     var uploadCalls = 0;
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = FakeAdapter((options) async {
         uploadCalls++;
         final authHeader = options.headers['Authorization'];
         if (authHeader == 'Bearer old-access') {
-          return _jsonResponse({}, 401);
+          return jsonResponse({}, 401);
         }
         expect(options.data, isA<FormData>());
-        return _jsonResponse({'ok': true}, 200);
+        return jsonResponse({'ok': true}, 200);
       });
 
     final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
-        return _jsonResponse({
+      ..httpClientAdapter = FakeAdapter((options) async {
+        return jsonResponse({
           'token': 'new-access',
           'refreshToken': 'new-refresh',
         }, 200);

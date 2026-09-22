@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../../auth/screens/login_screen.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../biens/models/bien.dart';
 import '../../biens/models/biens_repository.dart';
 import '../../locataires/models/contacts_repository.dart';
@@ -40,11 +42,11 @@ class ProfilScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // Redirige vers l'écran de Login et vide la pile de navigation
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+              // Déconnexion locale immédiate + révocation best-effort côté
+              // serveur (voir AuthRepository.logout). AuthGate réagit au
+              // changement d'état et ramène la pile de navigation à la
+              // racine — pas de navigation explicite à faire ici.
+              unawaited(AuthRepository.instance.logout());
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.warning,

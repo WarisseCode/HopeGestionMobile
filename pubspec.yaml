@@ -42,6 +42,7 @@ dependencies:
   # Stockage chiffré des tokens (Keystore Android / Keychain iOS). v11+ requiert
   # minSdk 24, déjà satisfait par le minSdk par défaut de ce projet (flutter.minSdkVersion).
   flutter_secure_storage: ^11.2.0
+  shared_preferences: ^2.5.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -51,6 +52,11 @@ dev_dependencies:
   # flutter_secure_storage, déclarée ici explicitement car importée
   # directement dans les tests.
   flutter_secure_storage_platform_interface: ^2.1.1
+
+  # Double officiel de shared_preferences pour les tests
+  # (InMemorySharedPreferencesAsync, voir test/features/onboarding/) : même
+  # raison que flutter_secure_storage_platform_interface ci-dessus.
+  shared_preferences_platform_interface: ^2.4.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

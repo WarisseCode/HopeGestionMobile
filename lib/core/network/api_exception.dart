@@ -45,6 +45,7 @@ class ApiException implements Exception {
     required this.message,
     this.statusCode,
     this.fieldErrors = const {},
+    this.data,
   });
 
   /// Construit une [ApiException] à partir d'une [DioException] Dio.
@@ -94,11 +95,20 @@ class ApiException implements Exception {
   /// de validation. Vide si la réponse n'en contenait pas.
   final Map<String, String> fieldErrors;
 
+  /// Corps brut de la réponse d'erreur, quand c'est un objet JSON (`null`
+  /// sinon, ou pour un échec sans réponse serveur — réseau, timeout...).
+  /// Pour lire un champ propre à une route précise que [message]/
+  /// [fieldErrors] ne couvrent pas (ex. `isVerified` sur
+  /// `POST /auth/mobile/login`), plutôt que d'étendre cette classe
+  /// générique pour chaque cas particulier.
+  final Map<String, dynamic>? data;
+
   static ApiException _fromResponse(Response<dynamic>? response) {
     final statusCode = response?.statusCode;
-    final data = response?.data;
-    final extractedMessage = _extractMessage(data);
-    final fieldErrors = _extractFieldErrors(data);
+    final rawData = response?.data;
+    final extractedMessage = _extractMessage(rawData);
+    final fieldErrors = _extractFieldErrors(rawData);
+    final data = rawData is Map<String, dynamic> ? rawData : null;
 
     switch (statusCode) {
       case 400:
@@ -107,30 +117,35 @@ class ApiException implements Exception {
           statusCode: statusCode,
           message: extractedMessage ?? 'Certaines informations sont invalides.',
           fieldErrors: fieldErrors,
+          data: data,
         );
       case 401:
         return ApiException(
           type: ApiExceptionType.unauthorized,
           statusCode: statusCode,
           message: extractedMessage ?? 'Session expirée. Veuillez vous reconnecter.',
+          data: data,
         );
       case 403:
         return ApiException(
           type: ApiExceptionType.forbidden,
           statusCode: statusCode,
           message: extractedMessage ?? 'Accès refusé.',
+          data: data,
         );
       case 404:
         return ApiException(
           type: ApiExceptionType.notFound,
           statusCode: statusCode,
           message: extractedMessage ?? 'Ressource introuvable.',
+          data: data,
         );
       case 429:
         return ApiException(
           type: ApiExceptionType.rateLimited,
           statusCode: statusCode,
           message: extractedMessage ?? 'Trop de requêtes. Réessayez dans un instant.',
+          data: data,
         );
     }
 
@@ -139,6 +154,7 @@ class ApiException implements Exception {
         type: ApiExceptionType.server,
         statusCode: statusCode,
         message: extractedMessage ?? 'Le serveur rencontre un problème. Réessayez plus tard.',
+        data: data,
       );
     }
 
@@ -147,6 +163,7 @@ class ApiException implements Exception {
       statusCode: statusCode,
       message: extractedMessage ?? 'Une erreur est survenue.',
       fieldErrors: fieldErrors,
+      data: data,
     );
   }
 

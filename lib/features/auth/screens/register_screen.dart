@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/screens/shell_screen.dart';
+import '../data/auth_repository.dart';
+import '../data/auth_results.dart';
 import '../widgets/auth_widgets.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,11 +21,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   bool _terms = false;
+  bool _loading = false;
+  String? _error;
 
-  void _register() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const ShellScreen()));
+  Future<void> _register() async {
+    if (!_terms) {
+      setState(
+        () => _error = "Veuillez accepter les conditions d'utilisation.",
+      );
+      return;
+    }
+
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final result = await AuthRepository.instance.register(
+      nom: _lastNameCtrl.text.trim(),
+      prenoms: _firstNameCtrl.text.trim(),
+      email: email,
+      telephone: _phoneCtrl.text.trim(),
+      password: password,
+    );
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    switch (result) {
+      case RegisterSuccess():
+        // Route poussée par-dessus la racine (AuthGate) depuis l'écran de
+        // connexion : pushReplacement ici ne remplace que cette route de
+        // RegisterScreen elle-même, pas la racine.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) =>
+                VerifyEmailScreen(email: email, password: password),
+          ),
+        );
+      case RegisterEmailTaken(message: final message):
+        setState(() => _error = message);
+      case RegisterValidationFailed(message: final message):
+        setState(() => _error = message);
+      case RegisterFailure(message: final message):
+        setState(() => _error = message);
+    }
   }
 
   @override
@@ -227,6 +272,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ],
                       ),
                     ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        style: GoogleFonts.ibmPlexSans(
+                          fontSize: 12,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // CTA
@@ -234,7 +290,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _register,
+                        onPressed: _loading ? null : _register,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: kTeal,
                           foregroundColor: Colors.white,
@@ -243,25 +299,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Créer mon compte',
-                              style: GoogleFonts.ibmPlexSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                        child: _loading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Créer mon compte',
+                                    style: GoogleFonts.ibmPlexSans(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

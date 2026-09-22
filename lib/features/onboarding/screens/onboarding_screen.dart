@@ -5,7 +5,13 @@ import '../models/onboarding_page_data.dart';
 import '../../auth/screens/login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  /// Si fourni, appelé à la place de la navigation interne vers l'écran de
+  /// connexion quand l'onboarding se termine (passé par `AuthGate`, qui
+  /// reste ainsi seul propriétaire de la route racine). Si `null` (usage
+  /// autonome, ex. tests), le comportement d'origine est conservé.
+  const OnboardingScreen({super.key, this.onDone});
+
+  final VoidCallback? onDone;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -33,6 +39,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _skip() => _navigateToLogin();
 
   void _navigateToLogin() {
+    if (widget.onDone != null) {
+      widget.onDone!();
+      return;
+    }
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));

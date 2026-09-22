@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/screens/shell_screen.dart';
+import '../data/auth_repository.dart';
+import '../data/auth_results.dart';
 import '../widgets/auth_widgets.dart';
 import 'register_screen.dart';
+import 'verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// Message à afficher une fois au premier affichage (ex. "Session
+  /// expirée, reconnectez-vous.") — voir `AuthGate`/`AuthRepository`.
+  const LoginScreen({super.key, this.message});
+
+  final String? message;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,11 +22,58 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
+  bool _loading = false;
+  String? _error;
 
-  void _login() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const ShellScreen()));
+  @override
+  void initState() {
+    super.initState();
+    final message = widget.message;
+    if (message != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      });
+    }
+  }
+
+  Future<void> _login() async {
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final result = await AuthRepository.instance.login(email, password);
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    switch (result) {
+      case LoginSuccess():
+      case LoginUnsupportedRole():
+        // Rien à faire : AuthGate réagit au changement d'état
+        // (authenticated / unsupportedRole) et ramène la pile de
+        // navigation à la racine.
+        break;
+      case LoginInvalidCredentials(message: final message):
+        setState(() => _error = message);
+      case LoginEmailNotVerified(email: final unverifiedEmail):
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VerifyEmailScreen(
+              email: unverifiedEmail,
+              password: password,
+            ),
+          ),
+        );
+      case LoginFailure(message: final message):
+        setState(() => _error = message);
+    }
   }
 
   @override
@@ -166,6 +219,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        style: GoogleFonts.ibmPlexSans(
+                          fontSize: 12,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // CTA
@@ -173,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _login,
+                        onPressed: _loading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: kTeal,
                           foregroundColor: Colors.white,
@@ -182,25 +246,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Se connecter',
-                              style: GoogleFonts.ibmPlexSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                        child: _loading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Se connecter',
+                                    style: GoogleFonts.ibmPlexSans(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
