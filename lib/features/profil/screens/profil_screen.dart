@@ -6,8 +6,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../../core/design_system.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/auth_state.dart';
-import '../../biens/models/bien.dart';
-import '../../biens/models/biens_repository.dart';
+import '../../biens/data/biens_repository.dart';
 import '../../locataires/models/contacts_repository.dart';
 import '../../parametres/screens/parametres_screen.dart';
 import 'change_password_screen.dart';
@@ -135,14 +134,24 @@ class ProfilScreen extends StatelessWidget {
                   }
                   final user = authState.user;
 
-                  final biens = BiensRepository.instance.items;
-                  final totalBiens = biens.length;
-                  final occupes = biens
-                      .where((b) => b.status == BienStatus.occupe)
-                      .length;
-                  final occupationRate = totalBiens == 0
+                  // Agrégats déjà calculés côté serveur par immeuble (voir
+                  // `bienRoutes.ts`) — pas besoin de `BiensRepository.lots`
+                  // (chargée seulement à l'ouverture d'un immeuble, donc pas
+                  // fiable ici : cet écran ne déclenche que la lecture de
+                  // `immeubles`, déjà chargée par `BiensScreen`).
+                  final immeubles = BiensRepository.instance.immeubles;
+                  final totalBiens = immeubles.length;
+                  final totalLots = immeubles.fold<int>(
+                    0,
+                    (sum, i) => sum + i.nbLots,
+                  );
+                  final lotsOccupes = immeubles.fold<int>(
+                    0,
+                    (sum, i) => sum + i.lotsOccupes,
+                  );
+                  final occupationRate = totalLots == 0
                       ? 0
-                      : ((occupes / totalBiens) * 100).round();
+                      : ((lotsOccupes / totalLots) * 100).round();
                   final tenants = ContactsRepository.instance.tenantCount;
 
                   return ListView(

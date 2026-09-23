@@ -10,6 +10,7 @@ import 'package:hope_gestion_mobile/core/network/api_client.dart';
 import 'package:hope_gestion_mobile/core/network/token_storage.dart';
 import 'package:hope_gestion_mobile/features/auth/data/auth_repository.dart';
 import 'package:hope_gestion_mobile/features/dashboard/widgets/quick_action_sheet.dart';
+import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/biens_screen.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/nouveau_bien_screen.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
@@ -114,6 +115,40 @@ Future<ResponseBody> _shellResponder(RequestOptions options) async {
       }, 200);
     case '/owners':
       return jsonResponse({'success': true, 'owners': <dynamic>[]}, 200);
+    case '/biens/immeubles':
+      // ShellScreen embarque aussi BiensScreen (onglet Biens), qui charge
+      // de vraies données via /biens/immeubles dès son premier frame
+      // (phase 4.4).
+      return jsonResponse({
+        'immeubles': [
+          {
+            'id': 1,
+            'nom': 'Résidence Palmiers',
+            'type': 'Immeuble',
+            'ville': 'Cotonou',
+            'statut': 'actif',
+            'nbLots': 3,
+            'lotsOccupes': 3,
+            'occupation': 100,
+            'etatOccupation': 'Complet',
+            'proprietaire': 'Mamadou Camara',
+          },
+          {
+            'id': 2,
+            'nom': 'Villa Almadies',
+            'type': 'Villa',
+            'ville': 'Cotonou',
+            'statut': 'actif',
+            'nbLots': 1,
+            'lotsOccupes': 0,
+            'occupation': 0,
+            'etatOccupation': 'Disponible',
+            'proprietaire': 'Aïcha Sarr',
+          },
+        ],
+      }, 200);
+    case '/biens/lots':
+      return jsonResponse({'lots': <dynamic>[]}, 200);
   }
   throw UnimplementedError(options.path);
 }
@@ -168,6 +203,9 @@ void main() {
       LocatairesRepository.initialize(
         LocatairesRepository(apiClient: apiClient),
       );
+      // ShellScreen embarque aussi BiensScreen (onglet Biens, voir
+      // IndexedStack) : accédée dès le premier frame, comme les autres.
+      BiensRepository.initialize(BiensRepository(apiClient: apiClient));
       await AuthRepository.instance.restoreSession();
     });
 
@@ -259,13 +297,14 @@ void main() {
     expect(find.byType(BiensScreen), findsOneWidget);
     expect(find.text('Mes biens'), findsOneWidget);
 
-    // Premier bien de la liste
-    expect(find.text('Apt. 12 — Mbour'), findsOneWidget);
-    expect(find.text('185 000 F / mois'), findsOneWidget);
+    // Immeubles de la liste (voir _shellResponder, /biens/immeubles).
+    expect(find.text('Résidence Palmiers'), findsOneWidget);
+    expect(find.text('3/3 lot(s) occupé(s)'), findsOneWidget);
+    expect(find.text('Villa Almadies'), findsOneWidget);
 
-    // Badges statut
-    expect(find.text('OCCUPÉ'), findsWidgets);
-    expect(find.text('VACANT'), findsWidgets);
+    // Badges d'état d'occupation (calculés côté serveur).
+    expect(find.text('COMPLET'), findsOneWidget);
+    expect(find.text('DISPONIBLE'), findsOneWidget);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -279,11 +318,11 @@ void main() {
     await tapTab(tester, 1);
 
     // Saisir dans la barre de recherche
-    await tester.enterText(find.byType(TextField), 'Duplex');
+    await tester.enterText(find.byType(TextField), 'Villa');
     await tester.pumpAndSettle();
 
-    expect(find.text('Duplex — Almadies'), findsOneWidget);
-    expect(find.text('Apt. 12 — Mbour'), findsNothing);
+    expect(find.text('Villa Almadies'), findsOneWidget);
+    expect(find.text('Résidence Palmiers'), findsNothing);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -347,10 +386,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: NouveauBienScreen()));
     await tester.pumpAndSettle();
 
-    // Vérifier l'étape 1
-    expect(find.text('Nouveau bien'), findsOneWidget);
-    expect(find.text('1 / 4'), findsOneWidget);
-    expect(find.text('Identité du bien'), findsOneWidget);
+    // Vérifier l'étape 1 (3 étapes depuis la phase 4.4, plus de "Médias" —
+    // aucun flux d'upload de photos n'existe encore côté mobile).
+    expect(find.text('Nouvel immeuble'), findsOneWidget);
+    expect(find.text('1 / 3'), findsOneWidget);
+    expect(find.text('Identité de l\'immeuble'), findsOneWidget);
 
     // Tenter d'avancer sans remplir -> affiche SnackBar d'erreur
     await tester.tap(find.text('Suivant'));

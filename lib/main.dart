@@ -8,6 +8,7 @@ import 'core/network/token_storage.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/screens/auth_gate.dart';
+import 'features/biens/data/biens_repository.dart';
 import 'features/locataires/data/locataires_repository.dart';
 import 'features/onboarding/data/onboarding_store.dart';
 
@@ -36,6 +37,9 @@ Future<void> main() async {
   // plutôt qu'une seconde instance Dio parallèle.
   LocatairesRepository.initialize(
     LocatairesRepository(apiClient: apiClient),
+  );
+  BiensRepository.initialize(
+    BiensRepository(apiClient: apiClient),
   );
   // Non attendu : AuthGate (voir plus bas) affiche un écran de chargement
   // pendant que restoreSession() tourne, pas la peine de bloquer runApp.

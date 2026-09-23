@@ -3,18 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../../core/design_system.dart';
-import '../models/nouveau_bien_form.dart';
+import '../models/nouveau_immeuble_form.dart';
 
-/// Étape 1 : Identité du bien (nom, type, étages, lots, description).
-class BienStep1Identite extends StatefulWidget {
-  const BienStep1Identite({super.key, required this.form});
-  final NouveauBienForm form;
+/// Étape 1 : Identité de l'immeuble (nom, type, étages, capacité prévue).
+class ImmeubleStep1Identite extends StatefulWidget {
+  const ImmeubleStep1Identite({super.key, required this.form});
+  final NouveauImmeubleForm form;
 
   @override
-  State<BienStep1Identite> createState() => _BienStep1IdentiteState();
+  State<ImmeubleStep1Identite> createState() => _ImmeubleStep1IdentiteState();
 }
 
-class _BienStep1IdentiteState extends State<BienStep1Identite> {
+class _ImmeubleStep1IdentiteState extends State<ImmeubleStep1Identite> {
   late final TextEditingController _nomCtrl;
   late final TextEditingController _etagesCtrl;
   late final TextEditingController _lotsCtrl;
@@ -23,21 +23,20 @@ class _BienStep1IdentiteState extends State<BienStep1Identite> {
   @override
   void initState() {
     super.initState();
-    _nomCtrl = TextEditingController(text: widget.form.nom);
-    _etagesCtrl = TextEditingController(text: widget.form.nbEtages.toString());
-    _lotsCtrl = TextEditingController(
-      text: widget.form.nbLots == 0 ? '' : widget.form.nbLots.toString(),
-    );
-    _descCtrl = TextEditingController(text: widget.form.description);
+    final f = widget.form;
+    _nomCtrl = TextEditingController(text: f.nom);
+    _etagesCtrl = TextEditingController(text: f.nombreEtages.toString());
+    _lotsCtrl = TextEditingController(text: f.totalLots?.toString() ?? '');
+    _descCtrl = TextEditingController(text: f.description);
 
-    _nomCtrl.addListener(() => widget.form.nom = _nomCtrl.text);
+    _nomCtrl.addListener(() => f.nom = _nomCtrl.text);
     _etagesCtrl.addListener(
-      () => widget.form.nbEtages = int.tryParse(_etagesCtrl.text) ?? 0,
+      () => f.nombreEtages = int.tryParse(_etagesCtrl.text) ?? 0,
     );
     _lotsCtrl.addListener(
-      () => widget.form.nbLots = int.tryParse(_lotsCtrl.text) ?? 0,
+      () => f.totalLots = int.tryParse(_lotsCtrl.text),
     );
-    _descCtrl.addListener(() => widget.form.description = _descCtrl.text);
+    _descCtrl.addListener(() => f.description = _descCtrl.text);
   }
 
   @override
@@ -63,10 +62,9 @@ class _BienStep1IdentiteState extends State<BienStep1Identite> {
             ),
           ),
           const SizedBox(height: 4),
-          Text('Identité du bien', style: AppTypography.titleScreen()),
+          Text('Identité de l\'immeuble', style: AppTypography.titleScreen()),
           const SizedBox(height: 24),
 
-          // Nom
           AppTextField(
             controller: _nomCtrl,
             hintText: 'Ex : Résidence Les Palmiers',
@@ -80,19 +78,16 @@ class _BienStep1IdentiteState extends State<BienStep1Identite> {
           ),
           const SizedBox(height: 20),
 
-          // Type
           AppDropdown<String>(
             label: 'Type de bien',
-            isRequired: true,
             value: widget.form.type,
-            items: NouveauBienForm.typesBien
+            items: NouveauImmeubleForm.typesImmeuble
                 .map((t) => AppDropdownItem(label: t, value: t))
                 .toList(),
-            onChanged: (v) => setState(() => widget.form.type = v ?? ''),
+            onChanged: (v) => setState(() => widget.form.type = v ?? 'Immeuble'),
           ),
           const SizedBox(height: 20),
 
-          // Nb étages
           AppTextField(
             controller: _etagesCtrl,
             hintText: '0',
@@ -103,19 +98,19 @@ class _BienStep1IdentiteState extends State<BienStep1Identite> {
           ),
           const SizedBox(height: 20),
 
-          // Nb lots
           AppTextField(
             controller: _lotsCtrl,
             hintText: 'Ex : 12',
-            label: 'Nombre total de lots',
-            isRequired: true,
+            label: 'Capacité prévue (optionnel)',
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            helperText: 'Nombre total d\'appartements ou locaux dans ce bien',
+            helperText:
+                'Nombre de lots que vous prévoyez — n\'en crée aucun '
+                'automatiquement, purement informatif tant qu\'ils ne sont '
+                'pas ajoutés un par un',
           ),
           const SizedBox(height: 20),
 
-          // Description
           AppTextField(
             controller: _descCtrl,
             hintText: 'Équipements, atouts, informations complémentaires...',

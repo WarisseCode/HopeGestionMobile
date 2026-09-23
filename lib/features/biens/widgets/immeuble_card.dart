@@ -1,20 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
-import '../models/bien.dart';
+import '../models/immeuble.dart';
 
-/// Carte d un bien immobilier dans la liste Biens.
-class BienCard extends StatelessWidget {
-  const BienCard({super.key, required this.bien, this.onTap, this.onMenu});
+/// Carte d'un immeuble dans la liste Biens — taux d'occupation déjà calculé
+/// côté serveur (`nbLots`/`lotsOccupes`/`etatOccupation`, voir
+/// `bienRoutes.ts`), pas de champ prix unique puisqu'un immeuble peut
+/// contenir plusieurs lots à des loyers différents (contrairement à
+/// l'ancien `Bien` mocké qui n'en affichait qu'un).
+class ImmeubleCard extends StatelessWidget {
+  const ImmeubleCard({super.key, required this.immeuble, this.onTap});
 
-  final Bien bien;
+  final Immeuble immeuble;
   final VoidCallback? onTap;
-  final VoidCallback? onMenu;
 
   @override
   Widget build(BuildContext context) {
-    final isOccupe = bien.status == BienStatus.occupe;
+    final badge = switch (immeuble.etatOccupation) {
+      'Complet' => const AppBadge.positive('COMPLET', isUppercase: false),
+      'En location' => const AppBadge.positive(
+          'EN LOCATION',
+          isUppercase: false,
+        ),
+      'Disponible' => const AppBadge.neutral(
+          'DISPONIBLE',
+          isUppercase: false,
+        ),
+      _ => const AppBadge.neutral('VIDE', isUppercase: false),
+    };
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -22,7 +37,6 @@ class BienCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
           ClipRRect(
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(AppRadius.lg),
@@ -32,50 +46,44 @@ class BienCard extends StatelessWidget {
               width: 110,
               height: 100,
               color: AppColors.muted,
-              child: bien.imageUrl != null
+              child: immeuble.photo != null
                   ? Image.network(
-                      bien.imageUrl!,
+                      AppConfig.resolveFileUrl(immeuble.photo!),
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => _placeholder(),
                     )
                   : _placeholder(),
             ),
           ),
-
-          // Content
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Badge statut
-                  isOccupe
-                      ? const AppBadge.positive('OCCUPÉ', isUppercase: false)
-                      : const AppBadge.neutral('VACANT', isUppercase: false),
+                  badge,
                   const SizedBox(height: 6),
-
-                  // Nom
                   Text(
-                    bien.name,
+                    immeuble.nom,
                     style: AppTypography.titleSection(fontSize: 15),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-
-                  // Type
                   Text(
-                    bien.type,
+                    [
+                      immeuble.type,
+                      immeuble.ville,
+                    ].where((s) => s != null && s.isNotEmpty).join(' · '),
                     style: AppTypography.bodySmall(
                       color: AppColors.mutedForeground,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-
-                  // Prix
                   Text(
-                    bien.price,
+                    '${immeuble.lotsOccupes}/${immeuble.nbLots} lot(s) occupé(s)',
                     style: AppTypography.bodySmall(
                       color: AppColors.foreground,
                       fontWeight: FontWeight.w600,
@@ -84,18 +92,6 @@ class BienCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-
-          // Menu
-          IconButton(
-            icon: Icon(
-              LucideIcons.ellipsis_vertical,
-              size: 18,
-              color: AppColors.mutedForeground,
-            ),
-            onPressed: onMenu,
-            padding: const EdgeInsets.fromLTRB(0, 8, 8, 0),
-            constraints: const BoxConstraints(),
           ),
         ],
       ),

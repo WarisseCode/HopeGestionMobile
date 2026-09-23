@@ -30,4 +30,25 @@ abstract final class AppConfig {
     if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
     return kDebugMode ? _localApiBaseUrl : _prodApiBaseUrl;
   }
+
+  /// Origine du serveur, sans le suffixe `/api` — même construction que
+  /// `API_BASE` côté web (`frontend/src/config/api.ts`).
+  static String get filesBaseUrl =>
+      apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
+  /// Résout l'URL d'un fichier renvoyé par le backend (`photo`/`photos`
+  /// d'un immeuble, etc.). `POST /api/upload` renvoie un chemin relatif
+  /// (`/uploads/...`) tant que Digital Ocean Spaces n'est pas configuré —
+  /// c'est le cas actuellement en production (`uploadRoutes.ts` : fallback
+  /// disque local si `SPACES_KEY`/`SPACES_SECRET`/... sont absents),
+  /// confirmé par le web qui préfixe systématiquement avec `API_BASE`
+  /// avant d'afficher une image (`ImageUpload.tsx`). Si Spaces est activé
+  /// un jour, l'URL renvoyée sera déjà absolue et cette fonction la laisse
+  /// telle quelle.
+  static String resolveFileUrl(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    return '$filesBaseUrl$path';
+  }
 }

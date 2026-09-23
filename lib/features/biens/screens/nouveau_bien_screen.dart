@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../models/bien.dart';
-import '../models/biens_repository.dart';
-import '../models/nouveau_bien_form.dart';
-import '../steps/bien_step1_identite.dart';
-import '../steps/bien_step2_localisation.dart';
-import '../steps/bien_step3_gestion.dart';
-import '../steps/bien_step4_medias.dart';
-import 'bien_succes_screen.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../locataires/data/owners_repository.dart';
+import '../../locataires/data/locataire_results.dart';
+import '../../locataires/models/owner.dart';
+import '../data/biens_repository.dart';
+import '../data/biens_results.dart';
+import '../models/nouveau_immeuble_form.dart';
+import '../steps/immeuble_step1_identite.dart';
+import '../steps/immeuble_step2_localisation.dart';
+import '../steps/immeuble_step3_proprietaire.dart';
+import 'immeuble_cree_screen.dart';
 
-/// Écran plein écran du formulaire multi-étapes "Nouveau Bien".
+/// Écran plein écran du formulaire "Nouvel immeuble" (3 étapes, réduites
+/// aux champs réels de `buildings` — voir phase 4.4 §0/§1). La création
+/// d'un lot est un flux séparé, enchaîné après succès (voir
+/// `ImmeubleCreeScreen`), pas une étape supplémentaire ici.
 class NouveauBienScreen extends StatefulWidget {
   const NouveauBienScreen({super.key});
 
@@ -21,15 +27,55 @@ class NouveauBienScreen extends StatefulWidget {
 
 class _NouveauBienScreenState extends State<NouveauBienScreen> {
   final PageController _pageController = PageController();
-  final NouveauBienForm _form = NouveauBienForm();
+  final NouveauImmeubleForm _form = NouveauImmeubleForm();
+  late final OwnersRepository _ownersRepository;
   int _currentStep = 0;
+  bool _submitting = false;
+
+  List<Owner> _owners = [];
+  bool _ownersLoading = true;
+  String? _ownersError;
 
   static const List<AppStepItem> _steps = [
     AppStepItem(label: 'Identité', icon: LucideIcons.building),
     AppStepItem(label: 'Localisation', icon: LucideIcons.map_pin),
-    AppStepItem(label: 'Gestion', icon: LucideIcons.user_check),
-    AppStepItem(label: 'Médias', icon: LucideIcons.image),
+    AppStepItem(label: 'Propriétaire', icon: LucideIcons.user_check),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _ownersRepository = OwnersRepository(
+      apiClient: AuthRepository.instance.apiClient,
+    );
+    _loadOwners();
+  }
+
+  Future<void> _loadOwners() async {
+    setState(() {
+      _ownersLoading = true;
+      _ownersError = null;
+    });
+    final result = await _ownersRepository.list();
+    if (!mounted) return;
+    switch (result) {
+      case OwnersListSuccess(owners: final owners):
+        setState(() {
+          _owners = owners;
+          _ownersLoading = false;
+          _form.ownerSelectionRequired = owners.length > 1;
+          if (owners.length == 1) {
+            _form.ownerId = owners.first.id;
+            _form.ownerName = owners.first.displayName;
+          }
+        });
+      case OwnersListFailure(message: final message):
+        setState(() {
+          _ownersError = message;
+          _ownersLoading = false;
+        });
+    }
+  }
 
   @override
   void dispose() {
@@ -64,17 +110,17 @@ class _NouveauBienScreenState extends State<NouveauBienScreen> {
     );
   }
 
-  void _onNext() {
+  Future<void> _onNext() async {
     FocusScope.of(context).unfocus();
 
     if (_currentStep == 0) {
       if (!_form.isStep1Valid()) {
-        _showError('Veuillez renseigner le nom du bien et au moins 1 lot.');
+        _showError('Veuillez renseigner le nom de l\'immeuble.');
         return;
       }
     } else if (_currentStep == 1) {
       if (!_form.isStep2Valid()) {
-        _showError('Veuillez renseigner la ville du bien.');
+        _showError('Veuillez renseigner l\'adresse et la ville.');
         return;
       }
     } else if (_currentStep == 2) {
@@ -82,27 +128,50 @@ class _NouveauBienScreenState extends State<NouveauBienScreen> {
         _showError('Veuillez sélectionner un propriétaire.');
         return;
       }
-    } else if (_currentStep == 3) {
-      // Terminer et enregistrer
-      BiensRepository.instance.add(
-        Bien(
-          id: 'prop-${DateTime.now().millisecondsSinceEpoch}',
-          name: _form.nom,
-          type:
-              '${_form.type} · ${_form.nbLots} lot'
-              '${_form.nbLots > 1 ? 's' : ''}',
-          price: 'Loyer à définir',
-          status: BienStatus.vacant,
-        ),
-      );
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => BienSuccesScreen(nomBien: _form.nom)),
-      );
+      await _submit();
       return;
     }
 
     if (_currentStep < _steps.length - 1) {
       _goToStep(_currentStep + 1);
+    }
+  }
+
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+
+    final result = await BiensRepository.instance.createImmeuble(
+      nom: _form.nom.trim(),
+      type: _form.type,
+      nombreEtages: _form.nombreEtages,
+      totalLots: _form.totalLots,
+      description: _form.description.trim(),
+      adresse: _form.adresse.trim(),
+      quartier: _form.quartier.trim(),
+      ville: _form.ville.trim(),
+      pays: _form.pays,
+      latitude: _form.latitude,
+      longitude: _form.longitude,
+      ownerId: _form.ownerId,
+    );
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    switch (result) {
+      case CreateImmeubleSuccess(id: final id):
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ImmeubleCreeScreen(
+              immeubleId: id,
+              nomImmeuble: _form.nom.trim(),
+            ),
+          ),
+        );
+      case CreateImmeubleValidationFailed(message: final message):
+        _showError(message);
+      case CreateImmeubleFailure(message: final message):
+        _showError(message);
     }
   }
 
@@ -150,41 +219,40 @@ class _NouveauBienScreenState extends State<NouveauBienScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header Stepper
             AppStepperHeader(
               steps: _steps,
               currentStep: _currentStep,
-              title: 'Nouveau bien',
-              subtitle: 'Création d\'un bien immobilier',
+              title: 'Nouvel immeuble',
+              subtitle: 'Création d\'un immeuble',
               onClose: _confirmExit,
             ),
 
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: AppWarningBanner.mockData(),
-            ),
-
-            // Form Pages
             Expanded(
               child: PageView(
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  BienStep1Identite(form: _form),
-                  BienStep2Localisation(form: _form),
-                  BienStep3Gestion(form: _form),
-                  BienStep4Medias(form: _form),
+                  ImmeubleStep1Identite(form: _form),
+                  ImmeubleStep2Localisation(form: _form),
+                  ImmeubleStep3Proprietaire(
+                    form: _form,
+                    owners: _owners,
+                    ownersLoading: _ownersLoading,
+                    ownersError: _ownersError,
+                    onRetryOwners: _loadOwners,
+                  ),
                 ],
               ),
             ),
 
-            // Bottom Nav Bar
             AppStepperNavBar(
-              onBack: _onBack,
-              onNext: _onNext,
+              onBack: _submitting ? () {} : _onBack,
+              onNext: _submitting ? () {} : _onNext,
               backLabel: _currentStep == 0 ? 'Annuler' : 'Précédent',
-              nextLabel: isLastStep ? 'Enregistrer' : 'Suivant',
-              onSkip: isLastStep ? _onNext : null,
+              nextLabel: _submitting
+                  ? 'Enregistrement...'
+                  : (isLastStep ? 'Enregistrer' : 'Suivant'),
+              isNextEnabled: !_submitting,
             ),
           ],
         ),
