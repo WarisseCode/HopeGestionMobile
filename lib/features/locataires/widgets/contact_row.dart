@@ -2,13 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../models/contact.dart';
 
-/// Ligne de contact dans la liste Locataires / Contacts.
+/// Ligne de contact dans la liste Locataires / Contacts. Prend des champs
+/// simples plutôt qu'un `Contact` (mock) : réutilisée depuis la phase 4.3
+/// aussi bien pour des locataires réels (`Locataire`) que pour les
+/// propriétaires encore mockés (`Contact`), sans coupler ce widget à l'un
+/// ou l'autre modèle.
 class ContactRow extends StatelessWidget {
-  const ContactRow({super.key, required this.contact, this.onTap});
+  const ContactRow({
+    super.key,
+    required this.initials,
+    required this.name,
+    required this.info,
+    this.onTap,
+  });
 
-  final Contact contact;
+  final String initials;
+  final String name;
+
+  /// Sous-titre, ex. « Locataire · Apt. 12 »
+  final String info;
   final VoidCallback? onTap;
 
   @override
@@ -20,7 +33,7 @@ class ContactRow extends StatelessWidget {
         child: Row(
           children: [
             // Avatar avec initiales
-            AppAvatar(initials: contact.initials, size: 44),
+            AppAvatar(initials: initials, size: 44),
             const SizedBox(width: 14),
 
             // Nom + info
@@ -29,12 +42,12 @@ class ContactRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    contact.name,
+                    name,
                     style: AppTypography.titleSection(fontSize: 14),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    contact.info,
+                    info,
                     style: AppTypography.bodySmall(
                       color: AppColors.mutedForeground,
                     ),

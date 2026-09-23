@@ -3,11 +3,27 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../../core/design_system.dart';
 import '../models/nouveau_locataire_form.dart';
+import '../models/owner.dart';
 
 /// Étape 1 : Identité du locataire / contact.
 class LocataireStep1Identite extends StatefulWidget {
-  const LocataireStep1Identite({super.key, required this.form});
+  const LocataireStep1Identite({
+    super.key,
+    required this.form,
+    required this.owners,
+    required this.ownersLoading,
+    required this.ownersError,
+    required this.onRetryOwners,
+  });
+
   final NouveauLocataireForm form;
+
+  /// Propriétaires réellement gérés par l'utilisateur connecté (`GET
+  /// /owners`), chargés une fois par `NouveauLocataireScreen`.
+  final List<Owner> owners;
+  final bool ownersLoading;
+  final String? ownersError;
+  final VoidCallback onRetryOwners;
 
   @override
   State<LocataireStep1Identite> createState() => _LocataireStep1IdentiteState();
@@ -69,16 +85,7 @@ class _LocataireStep1IdentiteState extends State<LocataireStep1Identite> {
           const SizedBox(height: 24),
 
           // Propriétaire de rattachement
-          AppDropdown<String>(
-            label: 'Propriétaire de rattachement',
-            isRequired: true,
-            hintText: 'Sélectionner un propriétaire...',
-            value: f.proprietaire.isEmpty ? null : f.proprietaire,
-            items: NouveauLocataireForm.proprietaires
-                .map((p) => AppDropdownItem(label: p, value: p))
-                .toList(),
-            onChanged: (v) => setState(() => f.proprietaire = v ?? ''),
-          ),
+          _buildOwnerField(f),
           const SizedBox(height: 20),
 
           // Zone Avatar / Photo de profil
@@ -203,6 +210,7 @@ class _LocataireStep1IdentiteState extends State<LocataireStep1Identite> {
           // Téléphone
           AppTextField(
             label: 'Numéro de téléphone',
+            isRequired: true,
             hintText: 'Ex: +229 97 00 00 00',
             prefixIcon: Icon(
               LucideIcons.phone,
@@ -244,6 +252,88 @@ class _LocataireStep1IdentiteState extends State<LocataireStep1Identite> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Sélecteur réel, alimenté par `GET /owners` (propriétaires gérés par
+  /// l'utilisateur connecté) — voir `NouveauLocataireScreen`. Trois cas
+  /// réels observés côté backend (`tenantGuard.ts`) : aucun propriétaire lié
+  /// (rien à sélectionner, `owner_id` omis), un seul (résolu automatiquement
+  /// côté serveur, pas de choix à faire), plusieurs (sélection obligatoire).
+  Widget _buildOwnerField(NouveauLocataireForm f) {
+    if (widget.ownersLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (widget.ownersError != null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.warningSoft,
+          borderRadius: AppRadius.borderMd,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Propriétaires : ${widget.ownersError}',
+                style: AppTypography.bodySmall(color: AppColors.warning),
+              ),
+            ),
+            TextButton(
+              onPressed: widget.onRetryOwners,
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (widget.owners.isEmpty) {
+      // Aucun propriétaire lié à l'utilisateur ("mode gestionnaire pur",
+      // voir tenantGuard.ts) : owner_id sera omis à la création, rien à
+      // sélectionner.
+      return const SizedBox.shrink();
+    }
+
+    if (widget.owners.length == 1) {
+      final only = widget.owners.first;
+      return Row(
+        children: [
+          Icon(LucideIcons.building, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Propriétaire : ${only.displayName}',
+              style: AppTypography.bodySmall(color: AppColors.foreground),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return AppDropdown<int>(
+      label: 'Propriétaire de rattachement',
+      isRequired: true,
+      hintText: 'Sélectionner un propriétaire...',
+      value: f.ownerId,
+      items: widget.owners
+          .map((o) => AppDropdownItem(label: o.displayName, value: o.id))
+          .toList(),
+      onChanged: (v) => setState(() {
+        f.ownerId = v;
+        f.ownerName =
+            widget.owners.firstWhere((o) => o.id == v).displayName;
+      }),
     );
   }
 }

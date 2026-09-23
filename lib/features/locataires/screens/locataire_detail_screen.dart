@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../models/contact.dart';
 import '../../finances/screens/encaisser_screen.dart';
+import '../data/locataire_results.dart';
+import '../data/locataires_repository.dart';
+import '../models/locataire.dart';
+import 'edit_locataire_screen.dart';
 
-/// Fiche détaillée d'un locataire ou contact
+/// Fiche détaillée d'un locataire réel — `GET /api/locataires/:id`
+/// (locataire + baux + paiements récents).
 class LocataireDetailScreen extends StatefulWidget {
-  final Contact contact;
+  final int locataireId;
 
-  const LocataireDetailScreen({super.key, required this.contact});
+  const LocataireDetailScreen({super.key, required this.locataireId});
 
   @override
   State<LocataireDetailScreen> createState() => _LocataireDetailScreenState();
@@ -18,10 +22,159 @@ class LocataireDetailScreen extends StatefulWidget {
 class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
   int _selectedTab = 0; // 0: Location, 1: Paiements, 2: Pièces
 
+  bool _loading = true;
+  String? _errorMessage;
+  Locataire? _locataire;
+  List<TenantLease> _baux = [];
+  List<TenantPayment> _paiements = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    final result = await LocatairesRepository.instance.getDetail(
+      widget.locataireId,
+    );
+    if (!mounted) return;
+    switch (result) {
+      case LocataireDetailSuccess(
+        locataire: final locataire,
+        baux: final baux,
+        paiements: final paiements,
+      ):
+        setState(() {
+          _locataire = locataire;
+          _baux = baux;
+          _paiements = paiements;
+          _loading = false;
+        });
+      case LocataireDetailFailure(message: final message):
+        setState(() {
+          _errorMessage = message;
+          _loading = false;
+        });
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final locataire = _locataire;
+    if (locataire == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Supprimer ce locataire ?',
+          style: AppTypography.titleScreen(fontSize: 19),
+        ),
+        content: Text(
+          '« ${locataire.displayName} » sera déplacé vers la corbeille.',
+          style: AppTypography.bodySmall(color: AppColors.mutedForeground),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Annuler',
+              style: AppTypography.bodySmall(color: AppColors.mutedForeground),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'Supprimer',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final result = await LocatairesRepository.instance.delete(locataire.id);
+    if (!mounted) return;
+    switch (result) {
+      case DeleteLocataireSuccess():
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Locataire déplacé vers la corbeille.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case DeleteLocataireFailure(message: final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final contact = widget.contact;
-    final isTenant = contact.type == ContactType.tenant;
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    if (_errorMessage != null || _locataire == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Impossible de charger ce locataire',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.titleScreen(fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage ?? 'Erreur inconnue.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySmall(
+                      color: AppColors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  AppButton.primary(
+                    label: 'Réessayer',
+                    onPressed: _load,
+                    isFullWidth: false,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final locataire = _locataire!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -45,43 +198,33 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      contact.name,
+                      locataire.displayName,
                       style: AppTypography.titleScreen(fontSize: 20),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Appel téléphonique vers ${contact.name}...',
-                          ),
-                          behavior: SnackBarBehavior.floating,
+                    onPressed: () async {
+                      final updated = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EditLocataireScreen(locataire: locataire),
                         ),
                       );
+                      if (updated == true) _load();
                     },
                     icon: Icon(
-                      LucideIcons.phone,
+                      LucideIcons.pencil,
                       size: 20,
                       color: AppColors.primary,
                     ),
                   ),
                   IconButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Ouverture de WhatsApp pour ${contact.name}...',
-                          ),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    icon: const Icon(
-                      LucideIcons.message_circle,
+                    onPressed: _confirmDelete,
+                    icon: Icon(
+                      LucideIcons.trash,
                       size: 20,
-                      color: Color(0xFF25D366),
+                      color: AppColors.error,
                     ),
                   ),
                 ],
@@ -112,7 +255,7 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              contact.initials,
+                              locataire.initials,
                               style: AppTypography.titleScreen(
                                 fontSize: 22,
                                 color: AppColors.primary,
@@ -129,7 +272,7 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      contact.name,
+                                      locataire.displayName,
                                       style: AppTypography.titleScreen(
                                         fontSize: 18,
                                       ),
@@ -141,17 +284,13 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                                       vertical: 3,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: isTenant
-                                          ? AppColors.positiveSoft
-                                          : const Color(0xFFDBEAFE),
+                                      color: AppColors.positiveSoft,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      isTenant ? 'LOCATAIRE' : 'PROPRIÉTAIRE',
+                                      locataire.statut.toUpperCase(),
                                       style: AppTypography.caption(
-                                        color: isTenant
-                                            ? AppColors.primaryStrong
-                                            : const Color(0xFF1E40AF),
+                                        color: AppColors.primaryStrong,
                                       ).copyWith(fontWeight: FontWeight.bold),
                                     ),
                                   ),
@@ -159,14 +298,19 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                contact.info,
+                                locataire.type,
                                 style: AppTypography.bodySmall(
                                   color: AppColors.mutedForeground,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '+221 77 123 45 67 · contact@email.com',
+                                [
+                                  locataire.telephonePrincipal,
+                                  if (locataire.email != null &&
+                                      locataire.email!.isNotEmpty)
+                                    locataire.email!,
+                                ].join(' · '),
                                 style: AppTypography.caption(
                                   color: AppColors.mutedForeground,
                                 ),
@@ -179,8 +323,10 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Statut financier si locataire
-                  if (isTenant) ...[
+                  // Situation des loyers (réelle, depuis le bail actif le
+                  // plus récent — pas de prochaine échéance affichée : cette
+                  // route ne renvoie pas le jour d'échéance par bail).
+                  if (_activeBailPaymentStatus() != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -202,22 +348,11 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Situation des loyers : À jour',
-                                  style: AppTypography.bodyMedium(
-                                    color: AppColors.foreground,
-                                  ).copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  'Prochaine échéance le 05 Octobre 2026',
-                                  style: AppTypography.caption(
-                                    color: AppColors.mutedForeground,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              'Situation des loyers : ${_paymentStatusLabel(_activeBailPaymentStatus())}',
+                              style: AppTypography.bodyMedium(
+                                color: AppColors.foreground,
+                              ).copyWith(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -252,132 +387,193 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
 
                   // Contenu onglets
                   if (_selectedTab == 0) ...[
-                    _DetailCard(
-                      title: 'DÉTAILS DE LA LOCATION',
-                      children: [
-                        _DetailLine(
-                          label: 'Logement occupé',
-                          value: contact.info.replaceAll('Locataire · ', ''),
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _DetailLine(
-                          label: 'Date de prise d\'effet',
-                          value: '01 Janvier 2025',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _DetailLine(
-                          label: 'Loyer mensuel',
-                          value: '185 000 FCFA',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _DetailLine(
-                          label: 'Dépôt de garantie',
-                          value: '370 000 FCFA (2 mois)',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _DetailLine(
-                          label: 'Mode habituel',
-                          value: 'MTN Mobile Money',
-                        ),
-                      ],
-                    ),
+                    _buildBauxTab(),
                   ] else if (_selectedTab == 1) ...[
-                    _DetailCard(
-                      title: 'HISTORIQUE DES ENCAISSEMENTS',
-                      children: [
-                        _PaymentLine(
-                          title: 'Loyer Septembre 2026',
-                          date: '05 Sept. 2026 · MTN MoMo',
-                          amount: '185 000 F',
-                          status: 'Validé',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _PaymentLine(
-                          title: 'Loyer Août 2026',
-                          date: '03 Août 2026 · Virement',
-                          amount: '185 000 F',
-                          status: 'Validé',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _PaymentLine(
-                          title: 'Loyer Juillet 2026',
-                          date: '04 Juil. 2026 · Espèces',
-                          amount: '185 000 F',
-                          status: 'Validé',
-                        ),
-                      ],
-                    ),
+                    _buildPaiementsTab(),
                   ] else ...[
-                    _DetailCard(
-                      title: 'DOCUMENTS DU DOSSIER',
-                      children: [
-                        _DocLine(
-                          title: 'Pièce d\'identité (CNI / Passeport)',
-                          subtitle: 'Valable jusqu\'en 2029',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _DocLine(
-                          title: 'Contrat de bail signé',
-                          subtitle: 'Document officiel PDF',
-                        ),
-                        Divider(color: AppColors.border, height: 1),
-                        _DocLine(
-                          title: 'État des lieux d\'entrée contradictoire',
-                          subtitle: 'Signé le 02 Janvier 2025',
-                        ),
-                      ],
-                    ),
+                    _buildDocumentsTab(locataire),
                   ],
                 ],
               ),
             ),
 
             // Bouton Encaisser en bas
-            if (isTenant)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                  boxShadow: AppShadows.soft,
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              EncaisserScreen(initialTenant: contact.name),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border(top: BorderSide(color: AppColors.border)),
+                boxShadow: AppShadows.soft,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EncaisserScreen(
+                          initialTenant: locataire.displayName,
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    icon: const Icon(
-                      LucideIcons.circle_dollar_sign,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(
+                    LucideIcons.circle_dollar_sign,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Encaisser un loyer pour ce locataire',
+                    style: TextStyle(
                       color: Colors.white,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'Encaisser un loyer pour ce locataire',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  String? _activeBailPaymentStatus() {
+    if (_baux.isEmpty) return null;
+    final active = _baux.where((b) => b.statut == 'actif' || b.statut == 'signe');
+    final bail = active.isNotEmpty ? active.first : _baux.first;
+    return bail.paymentStatus;
+  }
+
+  String _paymentStatusLabel(String? status) {
+    switch (status) {
+      case 'paid':
+        return 'À jour';
+      case 'late':
+        return 'En retard';
+      case 'pending':
+        return 'En attente';
+      default:
+        return 'Inconnue';
+    }
+  }
+
+  Widget _buildBauxTab() {
+    if (_baux.isEmpty) {
+      return _EmptyState(text: 'Aucun bail enregistré pour ce locataire.');
+    }
+    return _DetailCard(
+      title: 'BAUX',
+      children: [
+        for (int i = 0; i < _baux.length; i++) ...[
+          _DetailLine(
+            label: [
+              if (_baux[i].refLot != null) _baux[i].refLot!,
+              if (_baux[i].buildingName != null) _baux[i].buildingName!,
+            ].join(' — ').ifEmpty('Logement'),
+            value: _baux[i].loyerActuel != null
+                ? '${_formatMontant(_baux[i].loyerActuel!)} · ${_baux[i].statut}'
+                : _baux[i].statut,
+          ),
+          if (i < _baux.length - 1) Divider(color: AppColors.border, height: 1),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPaiementsTab() {
+    if (_paiements.isEmpty) {
+      return _EmptyState(text: 'Aucun paiement enregistré.');
+    }
+    return _DetailCard(
+      title: 'HISTORIQUE DES ENCAISSEMENTS',
+      children: [
+        for (int i = 0; i < _paiements.length; i++) ...[
+          _PaymentLine(
+            title: _paiements[i].type ?? 'Paiement',
+            date: [
+              if (_paiements[i].datePaiement != null)
+                _paiements[i].datePaiement!,
+              if (_paiements[i].modePaiement != null)
+                _paiements[i].modePaiement!,
+            ].join(' · '),
+            amount: _formatMontant(_paiements[i].montant),
+          ),
+          if (i < _paiements.length - 1)
+            Divider(color: AppColors.border, height: 1),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDocumentsTab(Locataire locataire) {
+    final hasPiece = (locataire.numeroPiece != null &&
+            locataire.numeroPiece!.isNotEmpty) ||
+        (locataire.typePiece != null && locataire.typePiece!.isNotEmpty);
+    if (!hasPiece) {
+      return _EmptyState(text: 'Aucune pièce d\'identité enregistrée.');
+    }
+    return _DetailCard(
+      title: 'PIÈCE D\'IDENTITÉ',
+      children: [
+        _DetailLine(
+          label: 'Type',
+          value: locataire.typePiece ?? 'Non renseigné',
+        ),
+        Divider(color: AppColors.border, height: 1),
+        _DetailLine(
+          label: 'Numéro',
+          value: locataire.numeroPiece ?? 'Non renseigné',
+        ),
+        if (locataire.dateExpirationPiece != null) ...[
+          Divider(color: AppColors.border, height: 1),
+          _DetailLine(
+            label: 'Expiration',
+            value: locataire.dateExpirationPiece!,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+String _formatMontant(double value) {
+  final rounded = value.round();
+  final digits = rounded.abs().toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
+    buffer.write(digits[i]);
+  }
+  return '$buffer F';
+}
+
+extension _IfEmpty on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Text(
+          text,
+          style: AppTypography.bodySmall(color: AppColors.mutedForeground),
         ),
       ),
     );
@@ -473,9 +669,11 @@ class _DetailLine extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: AppTypography.bodySmall(color: AppColors.mutedForeground),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.bodySmall(color: AppColors.mutedForeground),
+            ),
           ),
           Text(
             value,
@@ -492,13 +690,11 @@ class _PaymentLine extends StatelessWidget {
   final String title;
   final String date;
   final String amount;
-  final String status;
 
   const _PaymentLine({
     required this.title,
     required this.date,
     required this.amount,
-    required this.status,
   });
 
   @override
@@ -508,76 +704,26 @@ class _PaymentLine extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppTypography.bodyMedium(color: AppColors.foreground)
-                    .copyWith(fontWeight: FontWeight.w600),
-              ),
-              Text(
-                date,
-                style: AppTypography.caption(color: AppColors.mutedForeground),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amount,
-                style: AppTypography.bodyMedium(color: AppColors.positive)
-                    .copyWith(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                status,
-                style: AppTypography.caption(color: AppColors.positive),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DocLine extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _DocLine({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(LucideIcons.file_text, size: 18, color: AppColors.primary),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: AppTypography.bodySmall(color: AppColors.foreground)
+                  style: AppTypography.bodyMedium(color: AppColors.foreground)
                       .copyWith(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  subtitle,
-                  style: AppTypography.caption(
-                    color: AppColors.mutedForeground,
-                  ),
+                  date,
+                  style: AppTypography.caption(color: AppColors.mutedForeground),
                 ),
               ],
             ),
           ),
-          Icon(
-            LucideIcons.chevron_right,
-            size: 16,
-            color: AppColors.mutedForeground,
+          Text(
+            amount,
+            style: AppTypography.bodyMedium(color: AppColors.positive)
+                .copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),

@@ -13,6 +13,7 @@ import 'package:hope_gestion_mobile/features/auth/screens/auth_gate.dart';
 import 'package:hope_gestion_mobile/features/auth/screens/login_screen.dart';
 import 'package:hope_gestion_mobile/features/auth/screens/offline_screen.dart';
 import 'package:hope_gestion_mobile/features/auth/screens/unsupported_role_screen.dart';
+import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
 import 'package:hope_gestion_mobile/features/onboarding/data/onboarding_store.dart';
 import 'package:hope_gestion_mobile/features/onboarding/screens/onboarding_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -196,12 +197,20 @@ void main() {
           if (options.path == '/dashboard/activity') {
             return jsonResponse({'activities': <dynamic>[]}, 200);
           }
+          if (options.path == '/locataires') {
+            return jsonResponse({'locataires': <dynamic>[]}, 200);
+          }
           return jsonResponse(_profileJson(), 200);
         },
       );
       await repo.restoreSession();
     });
     AuthRepository.initialize(repo);
+    // ShellScreen embarque aussi LocatairesScreen (onglet Contacts, voir
+    // IndexedStack) : accédée dès le premier frame, comme AuthRepository.
+    LocatairesRepository.initialize(
+      LocatairesRepository(apiClient: repo.apiClient),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: AuthGate()));
     await tester.pumpAndSettle();

@@ -98,7 +98,7 @@ class _LocataireStep4ConfirmationState
                             ),
                           ),
                           Text(
-                            'Propriétaire : ${f.proprietaire.isEmpty ? 'Non assigné' : f.proprietaire}',
+                            'Propriétaire : ${f.ownerName.isEmpty ? 'Non assigné' : f.ownerName}',
                             style: AppTypography.kpiNote(
                               color: AppColors.primaryStrong,
                             ),
@@ -170,14 +170,24 @@ class _LocataireStep4ConfirmationState
           ),
           const SizedBox(height: 24),
 
-          // Statut du profil
-          AppDropdown<String>(
-            label: 'Statut du profil',
-            value: f.statut,
-            items: NouveauLocataireForm.statuts
-                .map((s) => AppDropdownItem(label: s, value: s))
-                .toList(),
-            onChanged: (v) => setState(() => f.statut = v ?? f.statut),
+          // Statut du profil : toujours "Actif" à la création (imposé côté
+          // serveur, voir `POST /api/locataires`) — affiché à titre
+          // informatif, pas un choix réel.
+          Row(
+            children: [
+              Icon(
+                LucideIcons.circle_check,
+                size: 16,
+                color: AppColors.mutedForeground,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Statut à la création : Actif',
+                style: AppTypography.bodySmall(
+                  color: AppColors.mutedForeground,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
 

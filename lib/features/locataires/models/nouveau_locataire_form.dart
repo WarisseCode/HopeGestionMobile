@@ -2,7 +2,18 @@
 /// à travers les 4 étapes.
 class NouveauLocataireForm {
   // Étape 1 — Identité
-  String proprietaire = '';
+  int? ownerId;
+
+  /// Nom d'affichage du propriétaire sélectionné (étape 4) — résolu depuis
+  /// la liste réelle chargée par l'écran, pas une valeur inventée.
+  String ownerName = '';
+
+  /// `true` quand l'utilisateur gère plusieurs propriétaires (donc
+  /// `owner_id` obligatoire — voir `tenantGuard.ts`), fixé une fois par
+  /// `NouveauLocataireScreen` après le chargement de `GET /owners`, avant
+  /// toute validation de l'étape 1.
+  bool ownerSelectionRequired = false;
+
   String nom = '';
   String prenom = '';
   String typeProfile = 'Locataire'; // Locataire / Acheteur / Prospect
@@ -20,21 +31,11 @@ class NouveauLocataireForm {
   String modePaiement = 'Mobile Money';
   bool paiementEchelonne = false;
 
-  // Étape 4 — Statut final
-  String statut = 'Actif — Profil opérationnel';
-
   // Constantes
   static const List<String> typesProfile = [
     'Locataire',
     'Acheteur',
     'Prospect',
-  ];
-
-  static const List<String> proprietaires = [
-    'Mamadou Camara',
-    'Aïcha Sarr',
-    'Jean-Pierre Kouassi',
-    'Fatou Mbaye',
   ];
 
   static const List<String> typesId = [
@@ -51,18 +52,14 @@ class NouveauLocataireForm {
     'Chèque',
   ];
 
-  static const List<String> statuts = [
-    'Actif — Profil opérationnel',
-    'En attente de validation',
-    'Suspendu',
-    'Archivé',
-  ];
-
-  /// Valide l'étape 1 (champs requis : propriétaire, nom, prénom)
+  /// Valide l'étape 1 (nom, prénom, téléphone — champs réellement exigés par
+  /// `POST /api/locataires` ; propriétaire requis seulement si plusieurs
+  /// sont gérés par l'utilisateur, voir [ownerSelectionRequired]).
   bool isStep1Valid() =>
-      proprietaire.isNotEmpty &&
       nom.trim().isNotEmpty &&
-      prenom.trim().isNotEmpty;
+      prenom.trim().isNotEmpty &&
+      telephone.trim().isNotEmpty &&
+      (!ownerSelectionRequired || ownerId != null);
 
   /// Nom complet affiché sur l'écran de confirmation
   String get nomComplet => '${nom.toUpperCase()} $prenom';

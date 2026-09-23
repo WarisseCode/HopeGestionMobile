@@ -12,6 +12,7 @@ import 'package:hope_gestion_mobile/features/auth/data/auth_repository.dart';
 import 'package:hope_gestion_mobile/features/dashboard/widgets/quick_action_sheet.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/biens_screen.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/nouveau_bien_screen.dart';
+import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/locataires_screen.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/nouveau_locataire_screen.dart';
 import 'package:hope_gestion_mobile/core/screens/shell_screen.dart';
@@ -92,6 +93,27 @@ Future<ResponseBody> _shellResponder(RequestOptions options) async {
           },
         ],
       }, 200);
+    case '/locataires':
+      // ShellScreen embarque LocatairesScreen (onglet Contacts), qui charge
+      // de vraies données via /locataires dès son premier frame (phase
+      // 4.3) — "Yacine Diop" / "Apt. 12" reproduisent volontairement les
+      // valeurs attendues par les tests existants (LocatairesScreen smoke
+      // test) pour ne pas les réécrire.
+      return jsonResponse({
+        'locataires': [
+          {
+            'id': 1,
+            'nom': 'Diop',
+            'prenoms': 'Yacine',
+            'telephone_principal': '+22990000000',
+            'type': 'Locataire',
+            'statut': 'Actif',
+            'lot_nom': 'Apt. 12',
+          },
+        ],
+      }, 200);
+    case '/owners':
+      return jsonResponse({'success': true, 'owners': <dynamic>[]}, 200);
   }
   throw UnimplementedError(options.path);
 }
@@ -140,6 +162,11 @@ void main() {
       final apiClient = ApiClient(tokenStorage: tokenStorage, dio: dio);
       AuthRepository.initialize(
         AuthRepository(apiClient: apiClient, tokenStorage: tokenStorage),
+      );
+      // ShellScreen embarque aussi LocatairesScreen (onglet Contacts, voir
+      // IndexedStack) : accédée dès le premier frame, comme AuthRepository.
+      LocatairesRepository.initialize(
+        LocatairesRepository(apiClient: apiClient),
       );
       await AuthRepository.instance.restoreSession();
     });
