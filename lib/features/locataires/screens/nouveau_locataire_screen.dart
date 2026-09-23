@@ -137,6 +137,17 @@ class _NouveauLocataireScreenState extends State<NouveauLocataireScreen> {
     }
   }
 
+  /// `AAAA-MM-JJ` (ISO 8601, non ambigu pour la colonne `DATE` Postgres) —
+  /// même format que celui envoyé par le web (`LocataireForm.tsx`, via
+  /// `<input type="date">`). Ne jamais envoyer `JJ/MM/AAAA` : Postgres
+  /// l'interprète en `MM/JJ/AAAA` et rejette toute valeur avec un jour > 12.
+  String? _isoDate(DateTime? date) {
+    if (date == null) return null;
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _submit() async {
     setState(() => _submitting = true);
 
@@ -149,7 +160,7 @@ class _NouveauLocataireScreenState extends State<NouveauLocataireScreen> {
       adresseActuelle: _form.adresse.trim(),
       typePiece: _form.typeId,
       numeroPiece: _form.numeroId.trim(),
-      dateExpirationPiece: _form.dateExpiration.trim(),
+      dateExpirationPiece: _isoDate(_form.dateExpiration),
       type: _form.typeProfile,
       modePaiementPreferentiel: _form.modePaiement,
       paiementEchelonne: _form.paiementEchelonne,

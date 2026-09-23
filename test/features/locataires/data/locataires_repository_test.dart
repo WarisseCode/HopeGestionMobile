@@ -180,6 +180,38 @@ void main() {
       expect(repo.items, hasLength(1));
     });
 
+    test(
+      'envoie date_expiration_piece au format AAAA-MM-JJ (ISO, non ambigu pour Postgres)',
+      () async {
+        var postCalls = 0;
+        final repo = _repo((options) async {
+          if (options.method == 'POST' && options.path == '/locataires') {
+            postCalls++;
+            final data = options.data as Map;
+            expect(data['date_expiration_piece'], '2030-09-20');
+            return jsonResponse(
+              {'message': 'Locataire créé', 'id': 42, 'invitation_code': 'LOC-XYZ'},
+              201,
+            );
+          }
+          if (options.method == 'GET' && options.path == '/locataires') {
+            return jsonResponse({'locataires': <dynamic>[]}, 200);
+          }
+          throw UnimplementedError('${options.method} ${options.path}');
+        });
+
+        final result = await repo.create(
+          nom: 'Diop',
+          prenoms: 'Yacine',
+          telephonePrincipal: '+22990000000',
+          dateExpirationPiece: '2030-09-20',
+        );
+
+        expect(result, isA<CreateLocataireSuccess>());
+        expect(postCalls, 1);
+      },
+    );
+
     test('409 (doublon téléphone/email) → CreateLocataireDuplicate', () async {
       final repo = _repo(
         (options) async => jsonResponse(

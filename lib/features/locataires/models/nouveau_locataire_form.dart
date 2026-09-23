@@ -25,7 +25,12 @@ class NouveauLocataireForm {
   // Étape 2 — Documents (facultatif)
   String typeId = 'Carte Nationale d\'Identité (CNI)';
   String numeroId = '';
-  String dateExpiration = '';
+
+  /// Stockée en `DateTime` (pas en `String` déjà formatée) pour ne fixer le
+  /// format d'envoi (`AAAA-MM-JJ`, voir `NouveauLocataireScreen._submit`)
+  /// qu'au moment de la requête — l'affichage (`JJ/MM/AAAA`) est un problème
+  /// d'UI distinct, géré par `LocataireStep2Documents`.
+  DateTime? dateExpiration;
 
   // Étape 3 — Finances (facultatif)
   String modePaiement = 'Mobile Money';

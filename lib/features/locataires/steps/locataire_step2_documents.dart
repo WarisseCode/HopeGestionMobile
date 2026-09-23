@@ -24,8 +24,14 @@ class _LocataireStep2DocumentsState extends State<LocataireStep2Documents> {
     super.initState();
     _numeroController = TextEditingController(text: widget.form.numeroId);
     _dateExpController = TextEditingController(
-      text: widget.form.dateExpiration,
+      text: _formatDate(widget.form.dateExpiration),
     );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   @override
@@ -55,11 +61,9 @@ class _LocataireStep2DocumentsState extends State<LocataireStep2Documents> {
       },
     );
     if (picked != null) {
-      final formatted =
-          '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
       setState(() {
-        _dateExpController.text = formatted;
-        widget.form.dateExpiration = formatted;
+        _dateExpController.text = _formatDate(picked);
+        widget.form.dateExpiration = picked;
       });
     }
   }
