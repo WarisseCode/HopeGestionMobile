@@ -5,13 +5,31 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/data/auth_state.dart';
 import '../../biens/models/bien.dart';
 import '../../biens/models/biens_repository.dart';
 import '../../locataires/models/contacts_repository.dart';
 import '../../parametres/screens/parametres_screen.dart';
+import 'change_password_screen.dart';
+import 'edit_profile_screen.dart';
 
-const String _currentUserName = 'Warisse OTCHADE';
-const String _currentUserInitials = 'WO';
+/// Initiales affichées dans l'avatar quand aucune photo n'est disponible :
+/// première lettre du premier et du dernier "mot" du nom affiché (ex.
+/// "Warisse Otchade" → "WO"). `?` si le nom est vide (ne devrait pas
+/// arriver : `AuthRepository` refuse un profil sans `id`/`email`/`role`,
+/// mais `nom`/`prenom` peuvent en théorie être vides côté backend).
+String _initialsFor(String displayName) {
+  final words = displayName
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((w) => w.isNotEmpty)
+      .toList();
+  if (words.isEmpty) return '?';
+  final first = words.first.substring(0, 1).toUpperCase();
+  if (words.length == 1) return first;
+  final last = words.last.substring(0, 1).toUpperCase();
+  return '$first$last';
+}
 
 /// Écran du profil utilisateur (Gestionnaire immobilier)
 class ProfilScreen extends StatelessWidget {
@@ -103,8 +121,20 @@ class ProfilScreen extends StatelessWidget {
                 listenable: Listenable.merge([
                   BiensRepository.instance,
                   ContactsRepository.instance,
+                  AuthRepository.instance,
                 ]),
                 builder: (context, _) {
+                  final authState = AuthRepository.instance.state;
+                  // Cet écran n'est atteint que depuis le shell, donc en
+                  // principe toujours authenticated — sauf pendant la frame
+                  // entre une déconnexion/session expirée et le recentrage
+                  // de navigation d'AuthGate (voir sa doc). Repli défensif
+                  // plutôt qu'un crash sur ce cast, pour cette frame-là.
+                  if (authState is! AuthAuthenticated) {
+                    return const SizedBox.shrink();
+                  }
+                  final user = authState.user;
+
                   final biens = BiensRepository.instance.items;
                   final totalBiens = biens.length;
                   final occupes = biens
@@ -135,8 +165,8 @@ class ProfilScreen extends StatelessWidget {
                             // Avatar avec badge gestionnaire
                             Stack(
                               children: [
-                                const AppAvatar(
-                                  initials: _currentUserInitials,
+                                AppAvatar(
+                                  initials: _initialsFor(user.displayName),
                                   size: 80,
                                   isCircle: true,
                                 ),
@@ -166,12 +196,14 @@ class ProfilScreen extends StatelessWidget {
                             const SizedBox(height: 14),
 
                             Text(
-                              _currentUserName,
+                              user.displayName,
                               style: AppTypography.titleScreen(fontSize: 20),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Gestionnaire de Patrimoine Immobilier',
+                              user.role == 'manager'
+                                  ? 'Manager de Patrimoine Immobilier'
+                                  : 'Gestionnaire de Patrimoine Immobilier',
                               style: AppTypography.caption(
                                 color: AppColors.primary,
                               ).copyWith(fontWeight: FontWeight.w600),
@@ -219,12 +251,25 @@ class ProfilScreen extends StatelessWidget {
                             icon: LucideIcons.user,
                             title: 'Informations personnelles',
                             subtitle:
-                                'contact@hopegestion.com · +229 97 00 00 00',
+                                '${user.email} · '
+                                '${user.telephone ?? 'Téléphone non renseigné'}',
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Édition des coordonnées'),
-                                  behavior: SnackBarBehavior.floating,
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EditProfileScreen(user: user),
+                                ),
+                              );
+                            },
+                          ),
+                          const _ProfileDivider(),
+                          _ProfileMenuItem(
+                            icon: LucideIcons.lock,
+                            title: 'Changer le mot de passe',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ChangePasswordScreen(),
                                 ),
                               );
                             },

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hope_gestion_mobile/core/network/api_client.dart';
+import 'package:hope_gestion_mobile/core/network/api_exception.dart';
 import 'package:hope_gestion_mobile/core/network/token_storage.dart';
 import 'package:hope_gestion_mobile/features/auth/data/auth_repository.dart';
 import 'package:hope_gestion_mobile/features/auth/data/auth_results.dart';
@@ -29,6 +30,42 @@ Map<String, dynamic> _profileJson({
     'permissions': <String, dynamic>{},
   },
 };
+
+/// Construit un `AuthRepository` déjà en état `authenticated` (tokens
+/// enregistrés + `restoreSession()`), pour les tests de `updateProfile`/
+/// `changePassword` qui n'ont pas besoin de retester le chemin de
+/// connexion lui-même (déjà couvert ci-dessus). [refreshResponder] répond
+/// par défaut par un refresh réussi : nécessaire même quand le test ne
+/// s'intéresse pas au refresh, car un 401 "métier" (ex. mot de passe actuel
+/// incorrect) passe par le même mécanisme générique de refresh d'ApiClient
+/// avant de remonter (voir la mise en garde dans `AuthRepository
+/// .changePassword`).
+Future<AuthRepository> _authenticatedRepo({
+  required Future<ResponseBody> Function(RequestOptions options) responder,
+  Future<ResponseBody> Function(RequestOptions options)? refreshResponder,
+}) async {
+  final tokenStorage = TokenStorage();
+  await tokenStorage.savePair(
+    const TokenPair(accessToken: 'access-1', refreshToken: 'refresh-1'),
+  );
+  final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+    ..httpClientAdapter = FakeAdapter(responder);
+  final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+    ..httpClientAdapter = FakeAdapter(
+      refreshResponder ??
+          (options) async =>
+              jsonResponse({'token': 'access-2', 'refreshToken': 'refresh-2'}, 200),
+    );
+  final apiClient = ApiClient(
+    tokenStorage: tokenStorage,
+    dio: dio,
+    refreshDio: refreshDio,
+  );
+  final repo = AuthRepository(apiClient: apiClient, tokenStorage: tokenStorage);
+  await repo.restoreSession();
+  expect(repo.state, isA<AuthAuthenticated>());
+  return repo;
+}
 
 void main() {
   // TokenStorage a besoin d'un double du plugin flutter_secure_storage (voir
@@ -355,4 +392,210 @@ void main() {
       expect(repo.state, isA<AuthUnauthenticated>());
     },
   );
+
+  test(
+    'updateProfile succès : état mis à jour localement (pas de re-GET), '
+    'preferences/photo_url renvoyés inchangés',
+    () async {
+      var profileGetCalls = 0;
+      Map<String, dynamic>? sentPutBody;
+      final repo = await _authenticatedRepo(
+        responder: (options) async {
+          if (options.path == '/auth/profile' && options.method == 'GET') {
+            profileGetCalls++;
+            return jsonResponse(_profileJson(), 200);
+          }
+          if (options.path == '/auth/profile' && options.method == 'PUT') {
+            sentPutBody = Map<String, dynamic>.from(options.data as Map);
+            return jsonResponse({'message': 'Profil mis à jour avec succès.'}, 200);
+          }
+          throw UnimplementedError('${options.method} ${options.path}');
+        },
+      );
+
+      final result = await repo.updateProfile(
+        nom: 'Nouveaunom',
+        prenom: 'Nouveauprenom',
+        email: 'new@example.com',
+        telephone: '+22999999999',
+      );
+
+      expect(result, isA<UpdateProfileSuccess>());
+      final updatedUser = (result as UpdateProfileSuccess).user;
+      expect(updatedUser.nom, 'Nouveaunom');
+      expect(updatedUser.prenom, 'Nouveauprenom');
+      expect(updatedUser.email, 'new@example.com');
+      expect(updatedUser.telephone, '+22999999999');
+
+      expect(repo.state, isA<AuthAuthenticated>());
+      expect((repo.state as AuthAuthenticated).user.email, 'new@example.com');
+      // Une seule fois : celle de restoreSession() dans _authenticatedRepo,
+      // pas de second GET après la mise à jour.
+      expect(profileGetCalls, 1);
+      expect(sentPutBody, isNotNull);
+      expect(sentPutBody!['preferences'], <String, dynamic>{});
+      expect(sentPutBody!['photo_url'], isNull);
+    },
+  );
+
+  test(
+    'updateProfile erreur de validation (400, email manquant) : état inchangé',
+    () async {
+      final repo = await _authenticatedRepo(
+        responder: (options) async {
+          if (options.path == '/auth/profile' && options.method == 'GET') {
+            return jsonResponse(_profileJson(), 200);
+          }
+          if (options.path == '/auth/profile' && options.method == 'PUT') {
+            return jsonResponse({'message': 'Email requis.'}, 400);
+          }
+          throw UnimplementedError('${options.method} ${options.path}');
+        },
+      );
+
+      final result = await repo.updateProfile(
+        nom: 'X',
+        prenom: 'Y',
+        email: 'warisse@example.com',
+        telephone: '',
+      );
+
+      expect(result, isA<UpdateProfileValidationFailed>());
+      expect((result as UpdateProfileValidationFailed).message, 'Email requis.');
+      expect((repo.state as AuthAuthenticated).user.nom, 'Otchade');
+    },
+  );
+
+  test('updateProfile erreur réseau : UpdateProfileFailure, état inchangé', () async {
+    final repo = await _authenticatedRepo(
+      responder: (options) async {
+        if (options.path == '/auth/profile' && options.method == 'GET') {
+          return jsonResponse(_profileJson(), 200);
+        }
+        if (options.path == '/auth/profile' && options.method == 'PUT') {
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+          );
+        }
+        throw UnimplementedError('${options.method} ${options.path}');
+      },
+    );
+
+    final result = await repo.updateProfile(
+      nom: 'X',
+      prenom: 'Y',
+      email: 'warisse@example.com',
+      telephone: '+2290000000',
+    );
+
+    expect(result, isA<UpdateProfileFailure>());
+    expect((result as UpdateProfileFailure).type, ApiExceptionType.network);
+    expect((repo.state as AuthAuthenticated).user.nom, 'Otchade');
+  });
+
+  test('changePassword succès', () async {
+    Map<String, dynamic>? sentBody;
+    final repo = await _authenticatedRepo(
+      responder: (options) async {
+        if (options.path == '/auth/profile') return jsonResponse(_profileJson(), 200);
+        if (options.path == '/auth/change-password') {
+          sentBody = Map<String, dynamic>.from(options.data as Map);
+          return jsonResponse({'message': 'Mot de passe modifié avec succès.'}, 200);
+        }
+        throw UnimplementedError(options.path);
+      },
+    );
+
+    final result = await repo.changePassword(
+      currentPassword: 'Old1234',
+      newPassword: 'New12345',
+    );
+
+    expect(result, isA<ChangePasswordSuccess>());
+    expect(sentBody!['currentPassword'], 'Old1234');
+    expect(sentBody!['newPassword'], 'New12345');
+    // changePassword() ne modifie jamais AuthState.
+    expect(repo.state, isA<AuthAuthenticated>());
+  });
+
+  test(
+    'changePassword mot de passe actuel incorrect (401) : '
+    'ChangePasswordWrongCurrent avec le message backend',
+    () async {
+      final repo = await _authenticatedRepo(
+        responder: (options) async {
+          if (options.path == '/auth/profile') return jsonResponse(_profileJson(), 200);
+          if (options.path == '/auth/change-password') {
+            return jsonResponse({'message': 'Mot de passe actuel incorrect.'}, 401);
+          }
+          throw UnimplementedError(options.path);
+        },
+      );
+
+      final result = await repo.changePassword(
+        currentPassword: 'wrong-password',
+        newPassword: 'New12345',
+      );
+
+      expect(result, isA<ChangePasswordWrongCurrent>());
+      expect(
+        (result as ChangePasswordWrongCurrent).message,
+        'Mot de passe actuel incorrect.',
+      );
+    },
+  );
+
+  test(
+    'changePassword erreur de validation (400, nouveau mot de passe trop court)',
+    () async {
+      final repo = await _authenticatedRepo(
+        responder: (options) async {
+          if (options.path == '/auth/profile') return jsonResponse(_profileJson(), 200);
+          if (options.path == '/auth/change-password') {
+            return jsonResponse({
+              'errors': [
+                {'path': 'newPassword', 'msg': 'Le nouveau mot de passe doit contenir au moins 6 caractères'},
+              ],
+            }, 400);
+          }
+          throw UnimplementedError(options.path);
+        },
+      );
+
+      final result = await repo.changePassword(
+        currentPassword: 'Old1234',
+        newPassword: '123',
+      );
+
+      expect(result, isA<ChangePasswordValidationFailed>());
+      expect(
+        (result as ChangePasswordValidationFailed).fieldErrors['newPassword'],
+        'Le nouveau mot de passe doit contenir au moins 6 caractères',
+      );
+    },
+  );
+
+  test('changePassword erreur réseau : ChangePasswordFailure', () async {
+    final repo = await _authenticatedRepo(
+      responder: (options) async {
+        if (options.path == '/auth/profile') return jsonResponse(_profileJson(), 200);
+        if (options.path == '/auth/change-password') {
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+          );
+        }
+        throw UnimplementedError(options.path);
+      },
+    );
+
+    final result = await repo.changePassword(
+      currentPassword: 'Old1234',
+      newPassword: 'New12345',
+    );
+
+    expect(result, isA<ChangePasswordFailure>());
+    expect((result as ChangePasswordFailure).type, ApiExceptionType.network);
+  });
 }

@@ -142,3 +142,66 @@ class RegisterFailure extends RegisterResult {
   final String message;
   final ApiExceptionType type;
 }
+
+/// Résultat de `AuthRepository.updateProfile`.
+sealed class UpdateProfileResult {
+  const UpdateProfileResult();
+}
+
+class UpdateProfileSuccess extends UpdateProfileResult {
+  const UpdateProfileSuccess(this.user);
+
+  final AppUser user;
+}
+
+/// 400 : `email` manquant (seule validation faite par `PUT /auth/profile`
+/// lui-même — pas de règle `express-validator` sur cette route, vérifié en
+/// 4.1).
+class UpdateProfileValidationFailed extends UpdateProfileResult {
+  const UpdateProfileValidationFailed(this.message, this.fieldErrors);
+
+  final String message;
+  final Map<String, String> fieldErrors;
+}
+
+class UpdateProfileFailure extends UpdateProfileResult {
+  const UpdateProfileFailure(this.message, this.type);
+
+  final String message;
+  final ApiExceptionType type;
+}
+
+/// Résultat de `AuthRepository.changePassword`. Ne change jamais `AuthState`.
+sealed class ChangePasswordResult {
+  const ChangePasswordResult();
+}
+
+class ChangePasswordSuccess extends ChangePasswordResult {
+  const ChangePasswordSuccess();
+}
+
+/// 401 : mot de passe actuel incorrect (`AuthService.changePassword`) — pas
+/// un problème de session (voir la mise en garde dans le journal sur le
+/// coût d'un aller-retour de refresh inutile pour ce cas précis).
+class ChangePasswordWrongCurrent extends ChangePasswordResult {
+  const ChangePasswordWrongCurrent(this.message);
+
+  final String message;
+}
+
+/// 400 : `newPassword` trop court (< 6 caractères, règle
+/// `express-validator` de la route — pas la politique plus stricte de
+/// `register`), ou champs manquants.
+class ChangePasswordValidationFailed extends ChangePasswordResult {
+  const ChangePasswordValidationFailed(this.message, this.fieldErrors);
+
+  final String message;
+  final Map<String, String> fieldErrors;
+}
+
+class ChangePasswordFailure extends ChangePasswordResult {
+  const ChangePasswordFailure(this.message, this.type);
+
+  final String message;
+  final ApiExceptionType type;
+}

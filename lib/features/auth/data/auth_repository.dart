@@ -278,6 +278,95 @@ class AuthRepository extends ChangeNotifier {
     }
   }
 
+  /// `PUT /auth/profile`. Doit être appelée depuis l'état `authenticated`
+  /// (seul écran qui l'appelle, `ProfilScreen`, n'est jamais atteint
+  /// autrement) — une erreur de programmation sinon, signalée par un
+  /// `StateError` plutôt qu'un échec silencieux.
+  ///
+  /// Le backend ne renvoie que `{message}`, jamais l'utilisateur mis à jour
+  /// (vérifié en 4.1) : après un succès, `state` est donc mis à jour
+  /// LOCALEMENT (`copyWith`) plutôt qu'en refaisant un `GET /auth/profile`.
+  /// `preferences`/`photo_url` sont renvoyés INCHANGÉS depuis l'utilisateur
+  /// courant (voir la doc de `AppUser.preferences`) : cette phase ne les
+  /// édite pas, et les omettre casserait silencieusement la mise à jour
+  /// côté backend.
+  Future<UpdateProfileResult> updateProfile({
+    required String nom,
+    required String prenom,
+    required String email,
+    required String telephone,
+  }) async {
+    final current = _state;
+    if (current is! AuthAuthenticated) {
+      throw StateError(
+        'AuthRepository.updateProfile() appelée hors de l\'état authenticated.',
+      );
+    }
+
+    try {
+      await _apiClient.request<Map<String, dynamic>>(
+        '/auth/profile',
+        method: 'PUT',
+        data: {
+          'nom': nom,
+          'prenom': prenom,
+          'email': email,
+          'telephone': telephone,
+          'preferences': current.user.preferences,
+          'photo_url': current.user.avatarUrl,
+        },
+      );
+    } on ApiException catch (e) {
+      if (e.type == ApiExceptionType.validation) {
+        return UpdateProfileValidationFailed(e.message, e.fieldErrors);
+      }
+      return UpdateProfileFailure(e.message, e.type);
+    }
+
+    final updatedUser = current.user.copyWith(
+      nom: nom,
+      prenom: prenom,
+      email: email,
+      telephone: telephone,
+    );
+    _setState(AuthAuthenticated(updatedUser));
+    return UpdateProfileSuccess(updatedUser);
+  }
+
+  /// `POST /auth/change-password`. Ne change jamais [state]. Distingue le
+  /// seul cas métier demandé (mot de passe actuel incorrect, 401) des
+  /// erreurs de validation et de transport.
+  ///
+  /// Piège connu, non corrigé ici (hors périmètre — comportement générique
+  /// d'`ApiClient`, déjà commité) : un 401 sur cette route N'EST PAS une
+  /// session expirée, mais `ApiClient` ne peut pas le distinguer d'un vrai
+  /// 401 d'authentification — il tente donc un refresh (qui réussit,
+  /// puisque la session est valide) puis rejoue la requête, qui échoue à
+  /// nouveau avec le même 401 "métier". Le résultat final renvoyé ici reste
+  /// correct ([ChangePasswordWrongCurrent] avec le bon message), au prix
+  /// d'un aller-retour réseau superflu à chaque mot de passe actuel erroné.
+  Future<ChangePasswordResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _apiClient.request<Map<String, dynamic>>(
+        '/auth/change-password',
+        method: 'POST',
+        data: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      );
+      return const ChangePasswordSuccess();
+    } on ApiException catch (e) {
+      if (e.type == ApiExceptionType.unauthorized) {
+        return ChangePasswordWrongCurrent(e.message);
+      }
+      if (e.type == ApiExceptionType.validation) {
+        return ChangePasswordValidationFailed(e.message, e.fieldErrors);
+      }
+      return ChangePasswordFailure(e.message, e.type);
+    }
+  }
+
   /// `POST /auth/resend-otp`. Anti-énumération UNIQUEMENT quand l'email est
   /// inconnu (200 silencieux dans ce cas). Si l'email existe mais est déjà
   /// vérifié, le backend renvoie un 400 explicite ("Cet email est déjà
