@@ -164,6 +164,11 @@ class _NouveauLocataireScreenState extends State<NouveauLocataireScreen> {
               onClose: _confirmExit,
             ),
 
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: AppWarningBanner.mockData(),
+            ),
+
             // Form Pages
             Expanded(
               child: PageView(

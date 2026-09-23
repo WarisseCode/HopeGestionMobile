@@ -100,6 +100,11 @@ class _NouvelEtatDesLieuxScreenState extends State<NouvelEtatDesLieuxScreen> {
               ),
             ),
 
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: AppWarningBanner.mockData(),
+            ),
+
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),

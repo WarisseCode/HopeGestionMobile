@@ -18,4 +18,5 @@ export 'widgets/app_bottom_bar.dart';
 export 'widgets/app_stepper.dart';
 export 'widgets/app_dropdown.dart';
 export 'widgets/app_info_banner.dart';
+export 'widgets/app_warning_banner.dart';
 export 'widgets/app_toggle_chip.dart';

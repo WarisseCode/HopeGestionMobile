@@ -23,6 +23,19 @@ class DashboardFluxChart extends StatefulWidget {
 class _DashboardFluxChartState extends State<DashboardFluxChart> {
   int? _selectedDayIndex;
 
+  /// Les montants réels (F CFA) n'ont aucune raison de tenir dans 0-100 :
+  /// la hauteur de chaque barre est relative au plus grand montant affiché,
+  /// pas une valeur absolue interprétée comme un pourcentage (comme avec
+  /// les données mockées auparavant).
+  double get _maxAmount {
+    var max = 0.0;
+    for (final day in widget.daysData) {
+      if (day.inAmount > max) max = day.inAmount;
+      if (day.outAmount > max) max = day.outAmount;
+    }
+    return max;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -96,6 +109,7 @@ class _DashboardFluxChartState extends State<DashboardFluxChart> {
               children: List.generate(widget.daysData.length, (index) {
                 final day = widget.daysData[index];
                 final isSelected = _selectedDayIndex == index;
+                final maxAmount = _maxAmount;
 
                 return GestureDetector(
                   onTap: () {
@@ -114,7 +128,9 @@ class _DashboardFluxChartState extends State<DashboardFluxChart> {
                           children: [
                             // Barre Entrées (Teal)
                             _buildBar(
-                              percentage: day.inAmount / 100.0,
+                              percentage: maxAmount > 0
+                                  ? day.inAmount / maxAmount
+                                  : 0,
                               color: isSelected
                                   ? AppColors.primaryStrong
                                   : AppColors.primary,
@@ -122,7 +138,9 @@ class _DashboardFluxChartState extends State<DashboardFluxChart> {
                             const SizedBox(width: 4),
                             // Barre Sorties (Gris neutre)
                             _buildBar(
-                              percentage: day.outAmount / 100.0,
+                              percentage: maxAmount > 0
+                                  ? day.outAmount / maxAmount
+                                  : 0,
                               color: isSelected
                                   ? const Color(0x886B7D7A)
                                   : const Color(0x356B7D7A),
@@ -131,9 +149,9 @@ class _DashboardFluxChartState extends State<DashboardFluxChart> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      // Numéro du jour
+                      // Libellé du jour (ex. "23 Sep")
                       Text(
-                        '${day.day}',
+                        day.label,
                         style:
                             AppTypography.kpiNote(
                               fontSize: 10,

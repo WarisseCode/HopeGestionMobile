@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../core/design_system.dart';
 import '../../../core/i18n/app_strings.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/data/auth_state.dart';
+import '../data/dashboard_repository.dart';
+import '../data/dashboard_result.dart';
 import '../models/dashboard_data.dart';
 import '../widgets/dashboard_flux_chart.dart';
 import '../widgets/dashboard_header.dart';
@@ -21,8 +25,38 @@ import '../../documents/screens/nouvelle_quittance_screen.dart';
 import '../../documents/screens/nouveau_contrat_screen.dart';
 import '../../documents/screens/nouvel_etat_des_lieux_screen.dart';
 
-/// Écran principal du Dashboard (Accueil) de HopeGestion Mobile
-/// Fidèle aux maquettes 01-dashboard.png et 02-action-rapide.png
+const _weekdays = [
+  'LUNDI',
+  'MARDI',
+  'MERCREDI',
+  'JEUDI',
+  'VENDREDI',
+  'SAMEDI',
+  'DIMANCHE',
+];
+const _months = [
+  'JANVIER',
+  'FÉVRIER',
+  'MARS',
+  'AVRIL',
+  'MAI',
+  'JUIN',
+  'JUILLET',
+  'AOÛT',
+  'SEPTEMBRE',
+  'OCTOBRE',
+  'NOVEMBRE',
+  'DÉCEMBRE',
+];
+
+String _todayFormatted() {
+  final now = DateTime.now();
+  return '${_weekdays[now.weekday - 1]} ${now.day} ${_months[now.month - 1]}';
+}
+
+/// Écran principal du Dashboard (Accueil) de HopeGestion Mobile.
+/// Données réelles chargées depuis `/api/dashboard/*` via
+/// [DashboardRepository] — voir sa doc de classe pour le détail des routes.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -31,28 +65,58 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late DashboardData _data;
+  late final DashboardRepository _repository;
+  DashboardData? _data;
+  bool _loading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _data = DashboardData.mock();
+    _repository = DashboardRepository(
+      apiClient: AuthRepository.instance.apiClient,
+    );
+    _loadInitial();
   }
 
+  Future<void> _loadInitial() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    final result = await _repository.load();
+    if (!mounted) return;
+    switch (result) {
+      case DashboardLoadSuccess(data: final data):
+        setState(() {
+          _data = data;
+          _loading = false;
+        });
+      case DashboardLoadFailure(message: final message):
+        setState(() {
+          _errorMessage = message;
+          _loading = false;
+        });
+    }
+  }
+
+  /// Tirer-pour-rafraîchir : contrairement au chargement initial, un échec
+  /// ici ne doit pas effacer les données déjà affichées (évite un écran
+  /// d'erreur plein écran alors que l'utilisateur avait déjà des données
+  /// valides) — juste un message.
   Future<void> _refreshData() async {
-    // Simule un rafraîchissement des données du dashboard
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (mounted) {
-      setState(() {
-        _data = DashboardData.mock();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppStrings.t('Tableau de bord actualisé')),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    final result = await _repository.load();
+    if (!mounted) return;
+    switch (result) {
+      case DashboardLoadSuccess(data: final data):
+        setState(() {
+          _data = data;
+          _errorMessage = null;
+        });
+      case DashboardLoadFailure(message: final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        );
     }
   }
 
@@ -91,6 +155,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = AuthRepository.instance.state;
+    final user = authState is AuthAuthenticated ? authState.user : null;
+
+    if (_loading && _data == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    if (_errorMessage != null && _data == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppStrings.t('Impossible de charger le tableau de bord'),
+                    textAlign: TextAlign.center,
+                    style: AppTypography.titleScreen(fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySmall(
+                      color: AppColors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  AppButton.primary(
+                    label: AppStrings.t('Réessayer'),
+                    onPressed: _loadInitial,
+                    isFullWidth: false,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final data = _data!;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -107,8 +222,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   // En-tête : Date, Salutation, Profil & Notifications
                   DashboardHeader(
-                    dateFormatted: _data.dateFormatted,
-                    userName: _data.userName,
+                    dateFormatted: _todayFormatted(),
+                    userName: user?.displayName ?? '',
+                    avatarUrl: user?.avatarUrl,
                     onProfileTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const ProfilScreen()),
@@ -126,9 +242,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // 3 Cartes KPIs
                   DashboardKpis(
-                    encaissements: _data.encaissements,
-                    depenses: _data.depenses,
-                    impayes: _data.impayes,
+                    encaissements: data.encaissements,
+                    depenses: data.depenses,
+                    impayes: data.impayes,
                     onKpiTap: (kpi) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -144,8 +260,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // Graphique des Flux 7 Jours
                   DashboardFluxChart(
-                    netAmount: _data.netFlux,
-                    daysData: _data.fluxDays,
+                    netAmount: data.netFlux,
+                    daysData: data.fluxDays,
                   ),
                   const SizedBox(height: 16),
 
@@ -155,7 +271,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // Section LOYERS RÉCENTS
                   DashboardRecentRents(
-                    rents: _data.recentRents,
+                    rents: data.recentRents,
                     onSeeAllTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -170,16 +286,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           builder: (_) => TransactionDetailScreen(
                             transaction: FinanceTransaction(
                               id: 'tx-${rent.id}',
-                              title: 'Loyer ${rent.property}',
+                              title: rent.property,
                               subtitle: rent.tenant,
-                              amount:
-                                  int.tryParse(
-                                    rent.amount.replaceAll(
-                                      RegExp(r'[^0-9]'),
-                                      '',
-                                    ),
-                                  ) ??
-                                  185000,
+                              amount: rent.amountValue,
                               isIncome: true,
                               date: DateTime.now(),
                               category: 'Loyer',

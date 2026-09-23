@@ -111,6 +111,11 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
               ),
             ),
 
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: AppWarningBanner.mockData(),
+            ),
+
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),

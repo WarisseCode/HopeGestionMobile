@@ -159,6 +159,11 @@ class _NouveauBienScreenState extends State<NouveauBienScreen> {
               onClose: _confirmExit,
             ),
 
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: AppWarningBanner.mockData(),
+            ),
+
             // Form Pages
             Expanded(
               child: PageView(

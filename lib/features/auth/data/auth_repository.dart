@@ -70,6 +70,13 @@ class AuthRepository extends ChangeNotifier {
 
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
+
+  /// Accès au client HTTP authentifié unique de l'app (voir `main.dart`),
+  /// pour les repositories d'autres features (ex. `DashboardRepository`)
+  /// qui doivent réutiliser le même `ApiClient` — même token en cache,
+  /// même logique de refresh — plutôt que d'en construire un second en
+  /// parallèle, ce qui dupliquerait cette logique de façon incohérente.
+  ApiClient get apiClient => _apiClient;
   late final StreamSubscription<void> _sessionExpiredSubscription;
 
   AuthState _state = const AuthInitializing();

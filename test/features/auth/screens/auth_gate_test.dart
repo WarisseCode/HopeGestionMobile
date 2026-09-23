@@ -170,18 +170,41 @@ void main() {
   });
 
   testWidgets('état authenticated : shell', (tester) async {
+    // `ShellScreen` embarque `DashboardScreen` (premier onglet), qui
+    // charge de vraies données via `/dashboard/*` dès son premier frame
+    // (voir `DashboardRepository`) — le faux répondeur doit donc aussi
+    // couvrir ces routes, sans quoi `Future.wait` échoue avec une 404
+    // (chemin non géré) et laisse un timer Dio en vol au moment où ce test
+    // ne fait qu'un seul `pump()`.
     late AuthRepository repo;
     await tester.runAsync(() async {
       repo = await buildRepo(
         withTokens: true,
-        responder: (options) async => jsonResponse(_profileJson(), 200),
+        responder: (options) async {
+          if (options.path == '/dashboard/kpi') {
+            return jsonResponse({
+              'kpis': <dynamic>[],
+              'summary': {
+                'loyersEncaisses': 0,
+                'loyersImpayes': 0,
+              },
+            }, 200);
+          }
+          if (options.path == '/dashboard/chart-data') {
+            return jsonResponse({'chartData': <dynamic>[], 'period': '6m'}, 200);
+          }
+          if (options.path == '/dashboard/activity') {
+            return jsonResponse({'activities': <dynamic>[]}, 200);
+          }
+          return jsonResponse(_profileJson(), 200);
+        },
       );
       await repo.restoreSession();
     });
     AuthRepository.initialize(repo);
 
     await tester.pumpWidget(const MaterialApp(home: AuthGate()));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(ShellScreen), findsOneWidget);
   });

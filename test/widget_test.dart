@@ -1,8 +1,14 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
+import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hope_gestion_mobile/core/design_system.dart';
+import 'package:hope_gestion_mobile/core/network/api_client.dart';
+import 'package:hope_gestion_mobile/core/network/token_storage.dart';
+import 'package:hope_gestion_mobile/features/auth/data/auth_repository.dart';
 import 'package:hope_gestion_mobile/features/dashboard/widgets/quick_action_sheet.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/biens_screen.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/nouveau_bien_screen.dart';
@@ -11,22 +17,133 @@ import 'package:hope_gestion_mobile/features/locataires/screens/nouveau_locatair
 import 'package:hope_gestion_mobile/core/screens/shell_screen.dart';
 import 'package:hope_gestion_mobile/main.dart';
 
+import 'support/fake_http_adapter.dart';
 import 'support/mock_http_overrides.dart';
+
+/// Réponses factices pour les routes que `ShellScreen` atteint dès son
+/// premier frame : `/auth/profile` (restauration de session, lue par
+/// `DashboardHeader` via `AuthRepository.instance`) et les 4 routes
+/// `/dashboard/*` (voir `DashboardRepository`) — nécessaire depuis que
+/// `DashboardScreen` (premier onglet du shell) charge de vraies données
+/// plutôt que `DashboardData.mock()`.
+Future<ResponseBody> _shellResponder(RequestOptions options) async {
+  switch (options.path) {
+    case '/auth/profile':
+      return jsonResponse({
+        'message': 'Profil récupéré',
+        'user': {
+          'id': 1,
+          'nom': 'Warisse',
+          'prenom': 'OTCHADE',
+          'email': 'warisse@example.com',
+          'telephone': '+2290197000000',
+          'role': 'gestionnaire',
+          'userType': 'gestionnaire',
+          'isGuest': false,
+          'photo_url': null,
+          'preferences': <String, dynamic>{},
+        },
+      }, 200);
+    case '/dashboard/kpi':
+      return jsonResponse({
+        'kpis': <dynamic>[],
+        'summary': {
+          'totalBiens': 5,
+          'totalLots': 20,
+          'lotsOccupes': 15,
+          'lotsLibres': 5,
+          'tauxOccupation': 75,
+          'loyersEncaisses': 2450000,
+          'loyersImpayes': 320000,
+          'contratsActifs': 15,
+          'plaintesOuvertes': 2,
+          'reservationsEnAttente': 1,
+          'montantARecouvrer': 320000,
+          'echelonementsEnRetard': 0,
+        },
+      }, 200);
+    case '/dashboard/chart-data':
+      if (options.queryParameters['period'] == '7d') {
+        return jsonResponse({
+          'chartData': [
+            {'name': '12 Avr', 'revenus': 600000, 'depenses': 300000},
+            {'name': '18 Avr', 'revenus': 900000, 'depenses': 250000},
+          ],
+          'period': '7d',
+        }, 200);
+      }
+      return jsonResponse({
+        'chartData': [
+          {'name': 'Mars', 'revenus': 2200000, 'depenses': 800000},
+          {'name': 'Avr', 'revenus': 2450000, 'depenses': 890000},
+        ],
+        'period': '6m',
+      }, 200);
+    case '/dashboard/activity':
+      return jsonResponse({
+        'activities': [
+          {
+            'id': 1,
+            'type': 'payment',
+            'title': 'Paiement reçu',
+            'description': 'Yacine Diop - loyer',
+            'created_at': '2026-04-14T10:00:00.000Z',
+            'montant': 185000,
+          },
+        ],
+      }, 200);
+  }
+  throw UnimplementedError(options.path);
+}
 
 void main() {
   setUpAll(() {
     HttpOverrides.global = MockHttpOverrides();
   });
 
+  // `TokenStorage` (utilisé pour authentifier `ShellScreen` dans `buildApp`
+  // ci-dessous) a besoin d'un double du plugin flutter_secure_storage — voir
+  // `test/core/network/token_storage_test.dart`.
+  setUp(() {
+    FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform(
+      {},
+    );
+  });
+
   // ─────────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────────
 
-  /// Construit l app avec une taille mobile standard.
+  /// Construit l app avec une taille mobile standard. Initialise
+  /// `AuthRepository.instance` avec un `ApiClient` factice (voir
+  /// `_shellResponder`) : `ShellScreen` embarque désormais `DashboardScreen`,
+  /// qui lit `AuthRepository.instance` et appelle `/dashboard/*` dès son
+  /// premier frame (données réelles, plus de `DashboardData.mock()`).
   Future<void> buildApp(WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
+
+    // `restoreSession()` fait un vrai aller-retour Dio (via `FakeAdapter`) :
+    // l'attendre directement dans le corps du test, avant le premier
+    // `pumpWidget`, bloque jusqu'au timeout de 10 min de
+    // `TestWidgetsFlutterBinding` (piège déjà rencontré et documenté en
+    // phase 3.2, voir `auth_gate_test.dart`) — `tester.runAsync()` est le
+    // mécanisme officiel pour exécuter du vrai code async dans ce contexte.
+    await tester.runAsync(() async {
+      final tokenStorage = TokenStorage();
+      await tokenStorage.savePair(
+        const TokenPair(accessToken: 'access-1', refreshToken: 'refresh-1'),
+      );
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
+        ..httpClientAdapter = FakeAdapter(_shellResponder);
+      final apiClient = ApiClient(tokenStorage: tokenStorage, dio: dio);
+      AuthRepository.initialize(
+        AuthRepository(apiClient: apiClient, tokenStorage: tokenStorage),
+      );
+      await AuthRepository.instance.restoreSession();
+    });
+
     await tester.pumpWidget(const HopeGestionApp(home: ShellScreen()));
     await tester.pumpAndSettle();
   }
@@ -51,30 +168,33 @@ void main() {
   testWidgets('Dashboard smoke test', (WidgetTester tester) async {
     await buildApp(tester);
 
-    // Éléments du header
+    // Éléments du header (nom réel de l'utilisateur authentifié, voir
+    // `_shellResponder` — la date du jour n'est plus assertée : elle vient
+    // de `DateTime.now()`, non déterministe dans un test).
     expect(find.text('Bonjour, Warisse OTCHADE'), findsOneWidget);
-    expect(find.text('LUNDI 14 AVRIL'), findsOneWidget);
 
-    // KPIs — labels affichés via label.toUpperCase() dans AppKpiCard
+    // KPIs — labels affichés via label.toUpperCase() dans AppKpiCard,
+    // valeurs réelles depuis les fixtures /dashboard/kpi et /chart-data.
     expect(find.text('ENCAISS.'), findsOneWidget);
-    expect(find.text('2,45 M'), findsOneWidget);
+    expect(find.text('2 450 000 F'), findsOneWidget);
     expect(find.text('DÉPENSES'), findsOneWidget);
-    expect(find.text('890 K'), findsOneWidget);
+    expect(find.text('890 000 F'), findsOneWidget);
     expect(find.text('IMPAYÉS'), findsOneWidget);
-    expect(find.text('320 K'), findsOneWidget);
+    expect(find.text('320 000 F'), findsOneWidget);
 
-    // Flux chart
+    // Flux chart — somme réelle des 2 points de /chart-data?period=7d
+    // (600k+900k) - (300k+250k) = 950k.
     expect(find.text('FLUX · 7 JOURS'), findsOneWidget);
-    expect(find.text('+1 560 000 F'), findsOneWidget);
+    expect(find.text('+950 000 F'), findsOneWidget);
 
     // Quick Actions
     expect(find.text('CRÉER'), findsOneWidget);
     expect(find.text('Bien'), findsOneWidget);
     expect(find.text('Locataire'), findsOneWidget);
 
-    // Loyers récents
+    // Loyers récents — depuis /dashboard/activity, filtré type=='payment'.
     expect(find.text('LOYERS RÉCENTS'), findsOneWidget);
-    expect(find.text('Apt. 12 — Mbour'), findsOneWidget);
+    expect(find.text('Yacine Diop - loyer'), findsOneWidget);
     expect(find.text('185 000 F'), findsOneWidget);
     expect(find.text('Payé'), findsWidgets);
   });
