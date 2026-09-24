@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
 import '../data/biens_repository.dart';
 import '../data/biens_results.dart';
@@ -481,21 +482,35 @@ class _LotRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOccupe = lot.statut == 'occupe';
+    final mainPhoto = lot.mainPhoto;
     return AppCard(
       onTap: onTap,
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
+          ClipOval(
+            child: Container(
+              width: 38,
+              height: 38,
               color: isOccupe ? AppColors.positiveSoft : AppColors.muted,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isOccupe ? LucideIcons.user : LucideIcons.key_round,
-              size: 18,
-              color: isOccupe ? AppColors.primary : AppColors.mutedForeground,
+              child: mainPhoto != null
+                  ? Image.network(
+                      AppConfig.resolveFileUrl(mainPhoto),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(
+                        isOccupe ? LucideIcons.user : LucideIcons.key_round,
+                        size: 18,
+                        color: isOccupe
+                            ? AppColors.primary
+                            : AppColors.mutedForeground,
+                      ),
+                    )
+                  : Icon(
+                      isOccupe ? LucideIcons.user : LucideIcons.key_round,
+                      size: 18,
+                      color: isOccupe
+                          ? AppColors.primary
+                          : AppColors.mutedForeground,
+                    ),
             ),
           ),
           const SizedBox(width: 12),

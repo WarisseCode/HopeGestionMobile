@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
 import '../data/biens_repository.dart';
 import '../data/biens_results.dart';
@@ -102,6 +103,44 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
+                  if (lot.photos.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.network(
+                        AppConfig.resolveFileUrl(lot.photos.first),
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _photoPlaceholder(),
+                      ),
+                    ),
+                    if (lot.photos.length > 1) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 64,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: lot.photos.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) => ClipRRect(
+                            borderRadius: AppRadius.borderMd,
+                            child: Image.network(
+                              AppConfig.resolveFileUrl(lot.photos[index]),
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                width: 64,
+                                height: 64,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.card,
@@ -152,6 +191,20 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _photoPlaceholder() {
+    return Container(
+      height: 180,
+      color: AppColors.muted,
+      child: Center(
+        child: Icon(
+          LucideIcons.image_off,
+          size: 32,
+          color: AppColors.mutedForeground,
         ),
       ),
     );

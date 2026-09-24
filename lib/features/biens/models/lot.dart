@@ -94,6 +94,11 @@ class Lot {
 
   final String? dateDisponibilite;
   final String? description;
+
+  /// Contrairement à [Immeuble], pas de colonne `photo`/`photo_url`
+  /// singulière côté backend pour un lot (`GET /biens/lots` ne renvoie que
+  /// `photos`) — premier élément de la liste, ou `null` si vide.
+  String? get mainPhoto => photos.isNotEmpty ? photos.first : null;
 }
 
 int? _asIntOrNull(dynamic value) {
