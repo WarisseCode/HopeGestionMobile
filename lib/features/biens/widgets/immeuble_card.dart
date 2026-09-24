@@ -46,9 +46,9 @@ class ImmeubleCard extends StatelessWidget {
               width: 110,
               height: 100,
               color: AppColors.muted,
-              child: immeuble.photo != null
+              child: immeuble.mainPhoto != null
                   ? Image.network(
-                      AppConfig.resolveFileUrl(immeuble.photo!),
+                      AppConfig.resolveFileUrl(immeuble.mainPhoto!),
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => _placeholder(),
                     )

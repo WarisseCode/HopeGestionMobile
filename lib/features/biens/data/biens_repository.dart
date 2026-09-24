@@ -133,7 +133,15 @@ class BiensRepository extends ChangeNotifier {
         data: {
           'nom': nom,
           if (type != null && type.isNotEmpty) 'type': type,
-          if (adresse != null && adresse.isNotEmpty) 'adresse': adresse,
+          // `adresse` est `NOT NULL` sur `buildings` (db/init.sql), mais la
+          // contrainte n'exige qu'une valeur non NULL, pas une chaîne non
+          // vide : toujours envoyée (même vide), jamais omise — contraire-
+          // ment aux autres champs optionnels ci-dessous, dont l'omission
+          // insère `NULL` sans risque sur une colonne nullable (voir
+          // `pg/lib/utils.js: prepareValue`, `undefined` traité comme
+          // `null`). Aligné sur le web (`ImmeubleForm.tsx`), qui envoie
+          // toujours ce champ sans jamais le rendre obligatoire à l'écran.
+          'adresse': adresse ?? '',
           if (ville != null && ville.isNotEmpty) 'ville': ville,
           if (pays != null && pays.isNotEmpty) 'pays': pays,
           if (quartier != null && quartier.isNotEmpty) 'quartier': quartier,

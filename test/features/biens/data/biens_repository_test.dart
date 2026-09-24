@@ -155,8 +155,11 @@ void main() {
             final data = options.data as Map;
             expect(data['nom'], 'Résidence Palmiers');
             expect(data['owner_id'], 7);
-            // Champs optionnels vides omis.
+            // Champs optionnels vides omis, sauf `adresse` : NOT NULL côté
+            // backend (satisfait par une chaîne vide, pas d'omission
+            // possible — correctif T-033 sur T-032).
             expect(data.containsKey('description'), isFalse);
+            expect(data['adresse'], '');
             return jsonResponse(_immeubleJson(), 200);
           }
           if (options.method == 'GET' && options.path == '/biens/immeubles') {

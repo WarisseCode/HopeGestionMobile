@@ -14,6 +14,13 @@ class NouveauImmeubleForm {
   int? totalLots;
   String description = '';
 
+  /// URLs déjà hébergées (retour de `POST /api/upload`, voir
+  /// `PhotoUploadRepository`) — jamais des fichiers locaux : l'upload a
+  /// lieu immédiatement à la sélection (voir `ImmeubleStep1Identite`), pas
+  /// à la soumission finale du formulaire. La première photo de la liste
+  /// devient `photo` (photo principale) à l'envoi de `createImmeuble()`.
+  List<String> photoUrls = [];
+
   // Étape 2 — Localisation
   String adresse = '';
   String quartier = '';
@@ -62,11 +69,14 @@ class NouveauImmeubleForm {
 
   bool isStep1Valid() => nom.trim().isNotEmpty;
 
-  /// `adresse` et `ville` sont toutes deux `NOT NULL` sur `buildings`
-  /// (`db/init.sql`) — confirmé en production par un 500
-  /// (`null value in column "adresse"...`) : `adresse` était traitée à tort
-  /// comme facultative alors que seule `ville` l'était réellement ici.
-  bool isStep2Valid() => adresse.trim().isNotEmpty && ville.trim().isNotEmpty;
+  /// `adresse` est bien `NOT NULL` sur `buildings` (`db/init.sql`), mais la
+  /// contrainte n'exige qu'une valeur non NULL, pas une chaîne non vide —
+  /// `BiensRepository.createImmeuble()` envoie toujours `adresse` (même
+  /// vide `''`), qui satisfait la contrainte. Pas de blocage ici, aligné
+  /// sur le web (`ImmeubleForm.tsx`), qui ne rend jamais ce champ
+  /// obligatoire à l'écran non plus (correctif sur T-032, qui avait
+  /// introduit ce blocage par erreur de conception).
+  bool isStep2Valid() => ville.trim().isNotEmpty;
 
   bool isStep3Valid() => !ownerSelectionRequired || ownerId != null;
 }

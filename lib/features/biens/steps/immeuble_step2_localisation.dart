@@ -70,7 +70,6 @@ class _ImmeubleStep2LocalisationState
             controller: _adresseCtrl,
             hintText: 'Ex : 123 Rue de la Paix',
             label: 'Adresse complète',
-            isRequired: true,
             prefixIcon: Icon(
               LucideIcons.map_pin,
               size: 18,

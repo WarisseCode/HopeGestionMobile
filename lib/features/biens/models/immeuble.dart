@@ -117,6 +117,14 @@ class Immeuble {
   /// 'Vide' / 'Disponible' / 'En location' / 'Complet' — calculé côté
   /// serveur à partir de `nbLots`/`lotsOccupes`, pas une colonne `statut`.
   final String? etatOccupation;
+
+  /// `photo` (colonne `photo_url`, la « photo principale ») avec repli sur
+  /// la première entrée de `photos` : le web ne renseigne `photo_url` que
+  /// dans certains chemins de sauvegarde (`ImmeubleForm.tsx`,
+  /// `handlePhotoAdd`) — de nombreux immeubles réels ont `photos` peuplé
+  /// mais `photo_url` resté `NULL` en base. Sans ce repli, leur photo
+  /// n'apparaît jamais malgré une URL valide et correctement résolue.
+  String? get mainPhoto => photo ?? (photos.isNotEmpty ? photos.first : null);
 }
 
 int? _asIntOrNull(dynamic value) {

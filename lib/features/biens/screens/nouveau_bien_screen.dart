@@ -120,7 +120,7 @@ class _NouveauBienScreenState extends State<NouveauBienScreen> {
       }
     } else if (_currentStep == 1) {
       if (!_form.isStep2Valid()) {
-        _showError('Veuillez renseigner l\'adresse et la ville.');
+        _showError('Veuillez renseigner la ville.');
         return;
       }
     } else if (_currentStep == 2) {
@@ -153,6 +153,8 @@ class _NouveauBienScreenState extends State<NouveauBienScreen> {
       latitude: _form.latitude,
       longitude: _form.longitude,
       ownerId: _form.ownerId,
+      photos: _form.photoUrls.isEmpty ? null : _form.photoUrls,
+      photo: _form.photoUrls.isEmpty ? null : _form.photoUrls.first,
     );
 
     if (!mounted) return;

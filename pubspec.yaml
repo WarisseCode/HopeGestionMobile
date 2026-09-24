@@ -43,6 +43,7 @@ dependencies:
   # minSdk 24, déjà satisfait par le minSdk par défaut de ce projet (flutter.minSdkVersion).
   flutter_secure_storage: ^11.2.0
   shared_preferences: ^2.5.5
+  image_picker: ^1.2.3
 dev_dependencies:
   flutter_test:
     sdk: flutter
