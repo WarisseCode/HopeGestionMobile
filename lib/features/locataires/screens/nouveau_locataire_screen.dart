@@ -165,6 +165,7 @@ class _NouveauLocataireScreenState extends State<NouveauLocataireScreen> {
       modePaiementPreferentiel: _form.modePaiement,
       paiementEchelonne: _form.paiementEchelonne,
       ownerId: _form.ownerId,
+      photoProfilUrl: _form.photoProfilUrl,
     );
 
     if (!mounted) return;

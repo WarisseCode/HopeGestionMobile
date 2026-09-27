@@ -5,6 +5,7 @@ import '../../../core/design_system.dart';
 import '../data/locataire_results.dart';
 import '../data/locataires_repository.dart';
 import '../models/locataire.dart';
+import '../widgets/avatar_picker.dart';
 
 /// Modification d'un locataire existant. Contrairement au formulaire de
 /// création (assistant en 4 étapes), un formulaire simple sur une page —
@@ -52,6 +53,7 @@ class _EditLocataireScreenState extends State<EditLocataireScreen> {
   late String _type = widget.locataire.type;
   late String _statut = widget.locataire.statut;
   late bool _paiementEchelonne = widget.locataire.paiementEchelonne;
+  late String? _photoProfilUrl = widget.locataire.photoProfilUrl;
 
   bool _loading = false;
   String? _error;
@@ -99,6 +101,7 @@ class _EditLocataireScreenState extends State<EditLocataireScreen> {
       dateExpirationPiece: widget.locataire.dateExpirationPiece,
       modePaiementPreferentiel: widget.locataire.modePaiementPreferentiel,
       adresseActuelle: _adresseCtrl.text.trim(),
+      photoProfilUrl: _photoProfilUrl,
     );
 
     if (!mounted) return;
@@ -159,6 +162,12 @@ class _EditLocataireScreenState extends State<EditLocataireScreen> {
                   vertical: 8,
                 ),
                 children: [
+                  AvatarPicker(
+                    initials: widget.locataire.initials,
+                    photoUrl: _photoProfilUrl,
+                    onChanged: (url) => setState(() => _photoProfilUrl = url),
+                  ),
+                  const SizedBox(height: 20),
                   AppTextField(
                     label: 'Nom',
                     isRequired: true,

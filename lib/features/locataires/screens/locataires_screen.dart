@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
 import '../data/locataire_results.dart';
 import '../data/locataires_repository.dart';
@@ -258,6 +259,9 @@ class _LocatairesScreenState extends State<LocatairesScreen> {
                                   initials: locataires[i].initials,
                                   name: locataires[i].displayName,
                                   info: _locataireInfo(locataires[i]),
+                                  photoUrl: _resolvedPhotoUrl(
+                                    locataires[i].photoProfilUrl,
+                                  ),
                                   onTap: () =>
                                       _openLocataireDetail(locataires[i]),
                                 ),
@@ -339,6 +343,14 @@ class _LocatairesScreenState extends State<LocatairesScreen> {
     }
     return '${l.type} · ${l.statut}';
   }
+}
+
+/// `null`/vide reste `null` (`ContactRow` affiche alors les initiales) ;
+/// sinon résout un chemin relatif (`/uploads/avatars/...`) en URL absolue —
+/// même logique que `ImmeubleCard`/`_LotRow` (T-031/T-034).
+String? _resolvedPhotoUrl(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  return AppConfig.resolveFileUrl(raw);
 }
 
 // ---------------------------------------------------------------------------

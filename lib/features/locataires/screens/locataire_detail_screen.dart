@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
 import '../../finances/screens/encaisser_screen.dart';
 import '../data/locataire_results.dart';
@@ -246,23 +247,7 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            color: AppColors.positiveSoft,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              locataire.initials,
-                              style: AppTypography.titleScreen(
-                                fontSize: 22,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ),
+                        _avatar(locataire),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -443,6 +428,46 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Photo si renseignée (`AppConfig.resolveFileUrl` — chemin relatif tant
+  /// que Digital Ocean Spaces n'est pas configuré, voir T-031), repli sur
+  /// les initiales si absente ou en cas d'erreur de chargement — même
+  /// pattern que `ImmeubleCard`/`_LotRow`.
+  Widget _avatar(Locataire locataire) {
+    final photo = locataire.photoProfilUrl;
+    if (photo == null || photo.isEmpty) {
+      return _initialsAvatar(locataire);
+    }
+    return ClipOval(
+      child: Image.network(
+        AppConfig.resolveFileUrl(photo),
+        width: 58,
+        height: 58,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _initialsAvatar(locataire),
+      ),
+    );
+  }
+
+  Widget _initialsAvatar(Locataire locataire) {
+    return Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        color: AppColors.positiveSoft,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          locataire.initials,
+          style: AppTypography.titleScreen(
+            fontSize: 22,
+            color: AppColors.primary,
+          ),
         ),
       ),
     );

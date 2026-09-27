@@ -212,6 +212,35 @@ void main() {
       },
     );
 
+    test('envoie photo_profil_url quand renseignée, omise sinon', () async {
+      var postCalls = 0;
+      final repo = _repo((options) async {
+        if (options.method == 'POST' && options.path == '/locataires') {
+          postCalls++;
+          final data = options.data as Map;
+          expect(data['photo_profil_url'], '/uploads/avatars/42-abc.jpg');
+          return jsonResponse(
+            {'message': 'Locataire créé', 'id': 42, 'invitation_code': 'LOC-XYZ'},
+            201,
+          );
+        }
+        if (options.method == 'GET' && options.path == '/locataires') {
+          return jsonResponse({'locataires': <dynamic>[]}, 200);
+        }
+        throw UnimplementedError('${options.method} ${options.path}');
+      });
+
+      final result = await repo.create(
+        nom: 'Diop',
+        prenoms: 'Yacine',
+        telephonePrincipal: '+22990000000',
+        photoProfilUrl: '/uploads/avatars/42-abc.jpg',
+      );
+
+      expect(result, isA<CreateLocataireSuccess>());
+      expect(postCalls, 1);
+    });
+
     test('409 (doublon téléphone/email) → CreateLocataireDuplicate', () async {
       final repo = _repo(
         (options) async => jsonResponse(
@@ -291,6 +320,39 @@ void main() {
       expect(putCalls, 1);
       expect(getCalls, 1);
     });
+
+    test(
+      'inclut toujours photo_profil_url (même null) pour ne pas la faire '
+      'écraser silencieusement côté backend si omise (`PUT` sans '
+      '`COALESCE`)',
+      () async {
+        var putCalls = 0;
+        final repo = _repo((options) async {
+          if (options.method == 'PUT' && options.path == '/locataires/1') {
+            putCalls++;
+            final data = options.data as Map;
+            expect(data.containsKey('photo_profil_url'), isTrue);
+            expect(data['photo_profil_url'], '/uploads/avatars/42-abc.jpg');
+            return jsonResponse({'message': 'Locataire mis à jour'}, 200);
+          }
+          return jsonResponse({'locataires': <dynamic>[]}, 200);
+        });
+
+        final result = await repo.update(
+          id: 1,
+          nom: 'Diop',
+          prenoms: 'Yacine',
+          telephonePrincipal: '+22990000000',
+          type: 'Locataire',
+          statut: 'Actif',
+          paiementEchelonne: false,
+          photoProfilUrl: '/uploads/avatars/42-abc.jpg',
+        );
+
+        expect(result, isA<UpdateLocataireSuccess>());
+        expect(putCalls, 1);
+      },
+    );
 
     test('400 de validation → UpdateLocataireValidationFailed', () async {
       final repo = _repo(

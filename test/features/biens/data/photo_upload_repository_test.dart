@@ -92,4 +92,32 @@ void main() {
 
     expect(result, isA<UploadPhotoFailure>());
   });
+
+  test(
+    'uploadAvatarPhoto : envoie type=avatar, renvoie le path renvoyé',
+    () async {
+      var postCalls = 0;
+      final repo = _repo((options) async {
+        final formData = options.data as FormData;
+        final typeField = formData.fields.firstWhere((f) => f.key == 'type');
+        expect(typeField.value, 'avatar');
+        postCalls++;
+        return jsonResponse({
+          'message': 'Upload réussi',
+          'files': [
+            {'path': '/uploads/avatars/42-abc123.jpg'},
+          ],
+        }, 200);
+      });
+
+      final result = await repo.uploadAvatarPhoto(tempFile);
+
+      expect(result, isA<UploadPhotoSuccess>());
+      expect(
+        (result as UploadPhotoSuccess).path,
+        '/uploads/avatars/42-abc123.jpg',
+      );
+      expect(postCalls, 1);
+    },
+  );
 }

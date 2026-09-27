@@ -22,6 +22,10 @@ class NouveauLocataireForm {
   String email = '';
   String adresse = '';
 
+  /// Chemin renvoyé par `POST /api/upload` (`type: 'avatar'`) après
+  /// sélection — `null` tant qu'aucune photo n'a été choisie.
+  String? photoProfilUrl;
+
   // Étape 2 — Documents (facultatif)
   String typeId = 'Carte Nationale d\'Identité (CNI)';
   String numeroId = '';

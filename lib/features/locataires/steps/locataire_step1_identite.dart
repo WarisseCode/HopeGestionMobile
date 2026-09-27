@@ -4,6 +4,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../../../core/design_system.dart';
 import '../models/nouveau_locataire_form.dart';
 import '../models/owner.dart';
+import '../widgets/avatar_picker.dart';
 
 /// Étape 1 : Identité du locataire / contact.
 class LocataireStep1Identite extends StatefulWidget {
@@ -89,56 +90,10 @@ class _LocataireStep1IdentiteState extends State<LocataireStep1Identite> {
           const SizedBox(height: 20),
 
           // Zone Avatar / Photo de profil
-          Center(
-            child: Column(
-              children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: AppColors.positiveSoft,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          f.initials.isEmpty ? '?' : f.initials,
-                          style: AppTypography.titleSection(
-                            color: AppColors.primaryStrong,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          LucideIcons.camera,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Photo de profil (facultative)',
-                  style: AppTypography.kpiNote(
-                    color: AppColors.mutedForeground,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
+          AvatarPicker(
+            initials: f.initials,
+            photoUrl: f.photoProfilUrl,
+            onChanged: (url) => setState(() => f.photoProfilUrl = url),
           ),
           const SizedBox(height: 20),
 

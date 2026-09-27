@@ -14,6 +14,7 @@ class ContactRow extends StatelessWidget {
     required this.initials,
     required this.name,
     required this.info,
+    this.photoUrl,
     this.onTap,
   });
 
@@ -22,6 +23,10 @@ class ContactRow extends StatelessWidget {
 
   /// Sous-titre, ex. « Locataire · Apt. 12 »
   final String info;
+
+  /// URL déjà résolue (voir `AppConfig.resolveFileUrl`) — `null`/vide
+  /// affiche les initiales.
+  final String? photoUrl;
   final VoidCallback? onTap;
 
   @override
@@ -33,7 +38,7 @@ class ContactRow extends StatelessWidget {
         child: Row(
           children: [
             // Avatar avec initiales
-            AppAvatar(initials: initials, size: 44),
+            _avatar(),
             const SizedBox(width: 14),
 
             // Nom + info
@@ -64,6 +69,21 @@ class ContactRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _avatar() {
+    if (photoUrl == null || photoUrl!.isEmpty) {
+      return AppAvatar(initials: initials, size: 44);
+    }
+    return ClipOval(
+      child: Image.network(
+        photoUrl!,
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => AppAvatar(initials: initials, size: 44),
       ),
     );
   }

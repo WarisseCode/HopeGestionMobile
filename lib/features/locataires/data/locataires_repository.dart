@@ -119,6 +119,7 @@ class LocatairesRepository extends ChangeNotifier {
     String? adresseActuelle,
     bool paiementEchelonne = false,
     int? ownerId,
+    String? photoProfilUrl,
   }) async {
     try {
       final response = await _apiClient.request<Map<String, dynamic>>(
@@ -147,6 +148,8 @@ class LocatairesRepository extends ChangeNotifier {
             'adresse_actuelle': adresseActuelle,
           'paiement_echelonne': paiementEchelonne,
           if (ownerId != null) 'owner_id': ownerId,
+          if (photoProfilUrl != null && photoProfilUrl.isNotEmpty)
+            'photo_profil_url': photoProfilUrl,
         },
       );
       final id = response.data?['id'];
@@ -193,6 +196,7 @@ class LocatairesRepository extends ChangeNotifier {
     String? dateExpirationPiece,
     String? modePaiementPreferentiel,
     String? adresseActuelle,
+    String? photoProfilUrl,
   }) async {
     try {
       await _apiClient.request<Map<String, dynamic>>(
@@ -213,6 +217,7 @@ class LocatairesRepository extends ChangeNotifier {
           'date_expiration_piece': dateExpirationPiece,
           'mode_paiement_preferentiel': modePaiementPreferentiel,
           'adresse_actuelle': adresseActuelle,
+          'photo_profil_url': photoProfilUrl,
         },
       );
       await refresh();

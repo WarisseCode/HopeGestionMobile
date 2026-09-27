@@ -26,9 +26,10 @@ class UploadPhotoFailure extends UploadPhotoResult {
 }
 
 /// `POST /api/upload` (`HopeGestionV2/backend/routes/uploadRoutes.ts`),
-/// déjà authentifiée. `type: 'property'` correspond au dossier `properties`
-/// résolu côté serveur (`resolveFolder`) — même convention que le web
-/// (`ImageUpload.tsx`, `folder="property"`).
+/// déjà authentifiée. Générique aux modules qui en ont besoin (Biens,
+/// Locataires — voir `resolveFolder` côté serveur) : le `type` détermine
+/// le dossier de destination, même convention que le web (`ImageUpload
+/// .tsx`, prop `folder`).
 class PhotoUploadRepository {
   PhotoUploadRepository({required ApiClient apiClient})
     // ignore: prefer_initializing_formals
@@ -36,10 +37,20 @@ class PhotoUploadRepository {
 
   final ApiClient _apiClient;
 
-  Future<UploadPhotoResult> uploadPropertyPhoto(File file) async {
+  /// `type: 'property'` → dossier `properties`.
+  Future<UploadPhotoResult> uploadPropertyPhoto(File file) =>
+      _upload('property', file);
+
+  /// `type: 'avatar'` → dossier `avatars` — photo de profil d'un locataire
+  /// (`Locataire.photoProfilUrl`), même convention que le web
+  /// (`AvatarUpload.tsx`).
+  Future<UploadPhotoResult> uploadAvatarPhoto(File file) =>
+      _upload('avatar', file);
+
+  Future<UploadPhotoResult> _upload(String type, File file) async {
     try {
       final formData = FormData.fromMap({
-        'type': 'property',
+        'type': type,
         'file': await MultipartFile.fromFile(file.path),
       });
       final response = await _apiClient.request<Map<String, dynamic>>(
