@@ -297,14 +297,62 @@ void main() {
     expect(find.byType(BiensScreen), findsOneWidget);
     expect(find.text('Mes biens'), findsOneWidget);
 
+    // En-tête : 3/3 + 0/1 lots (voir _shellResponder, /biens/immeubles).
+    expect(find.text('2 IMMEUBLES · 3/4 LOTS OCCUPÉS'), findsOneWidget);
+
     // Immeubles de la liste (voir _shellResponder, /biens/immeubles).
     expect(find.text('Résidence Palmiers'), findsOneWidget);
-    expect(find.text('3/3 lot(s) occupé(s)'), findsOneWidget);
+    expect(find.text('3 lots occupés sur 3'), findsOneWidget);
     expect(find.text('Villa Almadies'), findsOneWidget);
+    expect(find.text('0 lot occupé sur 1'), findsOneWidget);
+
+    // Propriétaire (`proprietaire` résolu côté serveur).
+    expect(find.text('Mamadou Camara'), findsOneWidget);
 
     // Badges d'état d'occupation (calculés côté serveur).
     expect(find.text('COMPLET'), findsOneWidget);
     expect(find.text('DISPONIBLE'), findsOneWidget);
+
+    // Puces de filtre, avec compteurs.
+    expect(find.text('Tous (2)'), findsOneWidget);
+    expect(find.text('Disponibles (1)'), findsOneWidget);
+    expect(find.text('Complets (1)'), findsOneWidget);
+    expect(find.text('Vides (0)'), findsOneWidget);
+  });
+
+  testWidgets('BiensScreen — puce de filtre Complets', (
+    WidgetTester tester,
+  ) async {
+    await buildApp(tester);
+    await tapTab(tester, 1);
+
+    // Rangée de puces défilante : la police de test (Ahem) les élargit
+    // au-delà des 390 px de l'écran, d'où le défilement préalable.
+    await tester.ensureVisible(find.text('Complets (1)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Complets (1)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Résidence Palmiers'), findsOneWidget);
+    expect(find.text('Villa Almadies'), findsNothing);
+  });
+
+  testWidgets('BiensScreen — le FAB ouvre directement NouveauBienScreen', (
+    WidgetTester tester,
+  ) async {
+    await buildApp(tester);
+    await tapTab(tester, 1);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(BiensScreen),
+        matching: find.byType(AppFab),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NouveauBienScreen), findsOneWidget);
+    expect(find.byType(QuickActionSheet), findsNothing);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -323,6 +371,13 @@ void main() {
 
     expect(find.text('Villa Almadies'), findsOneWidget);
     expect(find.text('Résidence Palmiers'), findsNothing);
+
+    // Le bouton d'effacement vide la recherche.
+    await tester.tap(find.byTooltip('Effacer la recherche'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Résidence Palmiers'), findsOneWidget);
+    expect(find.byTooltip('Effacer la recherche'), findsNothing);
   });
 
   // ─────────────────────────────────────────────────────────────

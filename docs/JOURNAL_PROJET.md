@@ -525,3 +525,70 @@ session/projet que le chantier est piloté.
   - `LotDetailScreen` : bande de miniatures ajoutée uniquement si plus d'une photo (`lot.photos.length > 1`) plutôt que systématiquement, pour ne pas afficher une rangée de miniatures redondante avec l'image principale quand il n'y a qu'une seule photo.
 - **Tests** : `Lot.mainPhoto` — première entrée de `photos` si présente, `null` si absente, `null` si tableau vide.
 - **Problèmes rencontrés** : aucun. `flutter analyze` : propre (mêmes `info` déjà présents ailleurs, aucun nouveau). `flutter test` : **112/112 tests verts** (109 précédents + 3 nouveaux). Pas de commit ni de push. **STOP**, comme demandé.
+
+### T-035 : Photo de profil du locataire — affichage + sélection à la création/modification
+- **Date** : 2026-09-24
+- **Statut** : Terminée
+- **Type** : Correction
+- **Description** : Confirmé par l'utilisateur : la photo de profil d'un locataire existe et s'affiche sur le web, mais jamais sur mobile. Diagnostic : `Locataire.photoProfilUrl` (champ direct, présent depuis la phase 4.3) était bien peuplé par `GET /locataires`/`GET /locataires/:id` (`SELECT t.*` / `SELECT *`, backend), mais aucun écran mobile n'affichait jamais la photo (seules les initiales), et aucun formulaire ne permettait de la sélectionner. Ajout de l'affichage (liste, détail) et de la sélection/upload à la création et à la modification.
+- **Vérifications demandées** :
+  - `Locataire.photoProfilUrl` confirmé peuplé par le backend (`locataireRoutes.ts`, colonnes `SELECT t.*`/`SELECT *` incluant `photo_profil_url`).
+  - `ContactRow` et `LocataireDetailScreen` confirmés : aucun affichage de photo n'existait avant cette entrée, seulement des cercles d'initiales (`AppAvatar`/`Container` décoratif).
+  - `EditLocataireScreen` et `NouveauLocataireScreen` (étape Identité) : la zone avatar de l'étape 1 était déjà présente visuellement (icône appareil photo) mais entièrement décorative (aucun `onTap`, aucune connexion à `image_picker`/upload) — confirmé avant d'ajouter le vrai sélecteur plutôt que de supposer qu'il manquait de zéro. `EditLocataireScreen` n'avait aucune zone photo du tout.
+  - Web (`LocataireForm.tsx`) : confirmé utiliser un composant `AvatarUpload` dédié, dossier résolu côté backend via `type: 'avatar'` → `avatars` (`resolveFolder`, `uploadRoutes.ts`) — repris à l'identique côté mobile.
+- **Bug latent trouvé en cours de route (corrigé dans la foulée)** : `LocatairesRepository.update()` n'envoyait jamais `photo_profil_url` dans le corps de `PUT /locataires/:id`. Cette route réécrit tous les champs sans `COALESCE` (déjà documenté dans le code) : omettre `photo_profil_url` l'aurait donc silencieusement effacé (mis à `NULL`) à **chaque** modification d'un locataire depuis mobile, y compris une photo définie depuis le web. Corrigé en même temps que l'ajout du sélecteur (le champ est maintenant systématiquement envoyé, pré-rempli avec la valeur actuelle si l'utilisateur ne la modifie pas).
+- **Fichiers touchés** :
+  - `lib/features/biens/data/photo_upload_repository.dart` : généralisé (déjà utilisé par Biens ET désormais Locataires) — `_upload(type, file)` factorisé, nouvelle méthode `uploadAvatarPhoto()` (`type: 'avatar'`) à côté de `uploadPropertyPhoto()` (`type: 'property'`), inchangée.
+  - `lib/features/locataires/widgets/avatar_picker.dart` (nouveau) : widget partagé (sélection galerie + upload + aperçu + suppression + repli sur initiales), utilisé par l'étape 1 de création et par l'écran de modification — évite de dupliquer la logique d'upload dans les deux écrans.
+  - `lib/features/locataires/steps/locataire_step1_identite.dart` : la zone avatar décorative est remplacée par `AvatarPicker`, branché sur `NouveauLocataireForm.photoProfilUrl` (nouveau champ).
+  - `lib/features/locataires/models/nouveau_locataire_form.dart` : nouveau champ `photoProfilUrl`.
+  - `lib/features/locataires/screens/nouveau_locataire_screen.dart` : `photoProfilUrl` transmis à `LocatairesRepository.create()`.
+  - `lib/features/locataires/screens/edit_locataire_screen.dart` : ajout d'`AvatarPicker` (pré-rempli avec `locataire.photoProfilUrl`), `photoProfilUrl` transmis à `LocatairesRepository.update()`.
+  - `lib/features/locataires/data/locataires_repository.dart` : `create()` envoie `photo_profil_url` si renseignée (omis sinon, même convention que les autres champs optionnels de cette méthode) ; `update()` l'envoie désormais systématiquement (voir bug latent ci-dessus).
+  - `lib/features/locataires/widgets/contact_row.dart` : nouveau paramètre optionnel `photoUrl` — affiche la photo (`ClipOval` + `Image.network`) si fournie, repli sur `AppAvatar` (initiales) si absente ou en cas d'erreur de chargement.
+  - `lib/features/locataires/screens/locataires_screen.dart` : résout `locataire.photoProfilUrl` via `AppConfig.resolveFileUrl()` (helper privé `_resolvedPhotoUrl`) avant de le passer à `ContactRow`.
+  - `lib/features/locataires/screens/locataire_detail_screen.dart` : le cercle d'initiales de la fiche détail affiche désormais la photo si présente (`_avatar()`), repli sur les initiales si absente ou en erreur (`_initialsAvatar()`).
+  - `test/features/biens/data/photo_upload_repository_test.dart` : +1 test (`uploadAvatarPhoto`, `type=avatar`).
+  - `test/features/locataires/data/locataires_repository_test.dart` : +2 tests (`create` envoie `photo_profil_url` si renseignée ; `update` l'envoie toujours, garde-fou contre la régression décrite ci-dessus).
+- **Décisions & justifications** :
+  - `PhotoUploadRepository` reste dans `lib/features/biens/data/` plutôt que déplacé vers un dossier partagé (`core/`) — des imports croisés `biens`/`locataires` existent déjà ailleurs dans ce projet (`nouveau_bien_screen.dart` importe des types Locataires pour le sélecteur propriétaire, et inversement), donc pas une nouvelle convention ; un déplacement de fichier aurait ajouté du bruit de diff sans bénéfice architectural réel pour ce correctif.
+  - `AvatarPicker` factorisé en widget partagé (plutôt que dupliqué dans les deux écrans) : la logique de sélection/upload/erreur est identique aux deux endroits, moins risqué qu'une éventuelle divergence entre deux copies.
+  - Repli sur les initiales en cas d'erreur de chargement réseau (`errorBuilder`, pas seulement si `photoProfilUrl` est `null`) — même exigence et même pattern que pour `ImmeubleCard`/`_LotRow` (T-031/T-034). `AppAvatar` (widget partagé, `core/widgets/app_avatar.dart`) n'a pas été modifié pour ce faire : il utilise `DecorationImage`/`NetworkImage` sans callback d'erreur, et le faire évoluer aurait changé un comportement partagé avec Profil/Dashboard, hors périmètre de cette demande. `ContactRow`/`LocataireDetailScreen` affichent donc directement `Image.network(..., errorBuilder: ...)` avec repli sur `AppAvatar`/un cercle d'initiales quand une photo est spécifiée, plutôt que de passer `imageUrl` à `AppAvatar`.
+- **Tests** : `PhotoUploadRepository.uploadAvatarPhoto` (`type=avatar`, path renvoyé) ; `LocatairesRepository.create` (photo envoyée si renseignée) ; `LocatairesRepository.update` (photo toujours envoyée, y compris avec une valeur — garde-fou contre l'effacement silencieux).
+- **Problèmes rencontrés** : aucun. `flutter analyze` : propre (mêmes `info` déjà présents ailleurs, dont un nouveau de même nature — `use_null_aware_elements` sur le nouveau bloc conditionnel de `create()`, cohérent avec le style déjà utilisé dans ce fichier et dans `biens_repository.dart`). `flutter test` : **115/115 tests verts** (112 précédents + 3 nouveaux). Pas de commit ni de push. **STOP**, en attente de relecture.
+
+### T-036 : Amélioration UI/UX de la liste Biens (carte immeuble, filtres, squelettes)
+- **Date** : 2026-09-27
+- **Statut** : Modifiée (voir T-037)
+- **Type** : Fonctionnalité
+- **Description** : Refonte de `ImmeubleCard` (photo pleine hauteur, badge d'état coloré, barre d'occupation, libellé accordé, propriétaire, placeholder discret) et de `BiensScreen` (FAB → `NouveauBienScreen` directement, marge basse tenant compte du FAB et de la barre de navigation, puces de filtre Tous/Disponibles/Complets/Vides avec compteurs, bouton d'effacement de la recherche, squelettes de chargement). Aucun changement backend, aucun autre écran touché.
+- **Fichiers touchés** :
+  - `lib/features/biens/widgets/immeuble_card.dart` : photo en `Positioned` dans un `Stack` dont la colonne de texte fixe la hauteur (hauteur min. 112 px), clip au rayon de la carte (`AppRadius.md - 1`, l'ancien clip utilisait `AppRadius.lg` alors que `AppCard` est en `md`) ; nouvelle classe `EtatOccupationStyle` (badge + couleur de barre) ; `occupationLabel()` statique.
+  - `lib/features/biens/widgets/immeuble_card_skeleton.dart` (nouveau) : squelette pulsé de même silhouette que la carte.
+  - `lib/features/biens/models/immeubles_filtre.dart` (nouveau) : enum `ImmeublesFiltre` + `matches()`.
+  - `lib/features/biens/screens/biens_screen.dart` : filtres, effacement, squelettes, FAB, marge basse (`_listBottomInset` = 90 + 56 + 16 = 162 px, au lieu de 100).
+  - `test/widget_test.dart` : smoke test Biens mis à jour (nouveau libellé) + tests puce « Complets », FAB → `NouveauBienScreen`, bouton d'effacement.
+  - `test/features/biens/models/immeubles_filtre_test.dart`, `test/features/biens/widgets/immeuble_card_test.dart` (nouveaux).
+- **Décisions & justifications** :
+  - `Stack` plutôt qu'`IntrinsicHeight` : la hauteur intrinsèque d'une `Image` dépend du ratio de la photo (un portrait aurait étiré la carte).
+  - Couleurs des badges : Complet → `positive`, En location → `info`, Disponible (aucun lot occupé) → `warning` (vacance à signaler, sans le rouge réservé aux erreurs/impayés), Vide → `neutral` (pastille grise sur fond de carte blanc, pas sur fond gris). La barre d'occupation reprend la couleur du badge. Libellés conservés en majuscules, comme avant.
+  - Filtre « Disponibles » = `Disponible` + `En location` (au moins un lot libre), ce qui est le besoin réel d'un gestionnaire qui cherche où placer un locataire. « Vides » inclut aussi `etatOccupation == null`, même repli que le badge.
+  - Compteurs des puces calculés après la recherche, pour qu'ils correspondent à ce que la puce affichera.
+  - Squelettes seulement au premier chargement (liste encore vide) : au retour d'une fiche ou lors d'un pull-to-refresh, la liste existante reste affichée au lieu de clignoter.
+  - Puces : `AppToggleChip` du design system dans une rangée à défilement horizontal (environ 400 px pour 4 puces avec compteurs, légèrement plus large qu'un écran de 390 px).
+  - FAB : pas de rechargement au retour de création, car `createImmeuble` rafraîchit déjà le dépôt, que l'écran écoute.
+- **Point 4 (compteur « X AVEC LOCATAIRES »), non modifié** : ce compteur mobile compte les immeubles ayant `lotsOccupes > 0`. Le web n'a **pas** d'équivalent sur la page Biens (`Biens.tsx` n'affiche que le nombre d'immeubles et un % d'occupation par ligne) ; le dashboard web raisonne en **lots** (`lotsOccupes / totalLots`), pas en immeubles. Il n'y a donc pas de chiffre web directement comparable. Autre réserve : côté serveur, `lots_occupes` compte les statuts `loue`, `occupe` **et `reserve`** (`bienRoutes.ts`), donc un immeuble dont le seul lot est réservé est compté « avec locataires ». À trancher : renommer en « X OCCUPÉS » ou afficher plutôt un total de lots occupés/lots, comme le dashboard web.
+- **Problèmes rencontrés** : `dart format lib/features/biens` a reformaté des fichiers hors périmètre (style différent de celui du dépôt). Les fichiers qui étaient propres ont été restaurés (`git checkout`), et les deux lignes reformatées dans `photo_upload_repository_test.dart` (qui contenait des modifications T-035 non commitées) ont été remises à l'identique à la main. Un test de tap sur la puce « Complets » échouait parce que la police de test (Ahem) élargit les puces hors écran : corrigé avec `ensureVisible`. `flutter analyze` : aucun problème sur les fichiers touchés (les 19 `info` restants du projet sont déjà présents ailleurs). `flutter test` : **129/129 verts**. Pas de commit.
+
+### T-037 : En-tête de la liste Biens en lots occupés (complément de T-036)
+- **Date** : 2026-09-27
+- **Statut** : Terminée
+- **Type** : Fonctionnalité
+- **Description** : Suite à la relecture de T-036 (point 4 laissé en attente), l'en-tête de `BiensScreen` passe de « X IMMEUBLES · Y AVEC LOCATAIRES » à « X IMMEUBLES · Y/Z LOTS OCCUPÉS ». Y = somme des `lotsOccupes`, Z = somme des `nbLots`, sur tous les immeubles (pas la liste filtrée). Si Z = 0, seul « X IMMEUBLES » est affiché.
+- **Fichiers touchés** :
+  - `lib/features/biens/screens/biens_screen.dart` : nouvelle méthode statique `BiensScreen.enteteLabel(List<Immeuble>)`, `_buildScaffold` reçoit le libellé prêt à afficher au lieu de `total`/`occupes`.
+  - `test/widget_test.dart` : le smoke test Biens vérifie l'en-tête (`2 IMMEUBLES · 3/4 LOTS OCCUPÉS` avec les fixtures 3/3 + 0/1).
+  - `test/features/biens/screens/biens_screen_test.dart` (nouveau) : sommes sur plusieurs immeubles, cas Z = 0, liste vide.
+- **Décisions & justifications** : règle serveur conservée telle quelle (`bienRoutes.ts` : un lot `reserve` compte comme occupé, comme `loue`/`occupe`), comme demandé. Même unité (le lot) que le dashboard web, qui affiche `lotsOccupes / totalLots`. Le calcul est isolé dans une méthode statique pour tester le cas Z = 0 sans monter l'écran.
+- **Problèmes rencontrés** : aucun. `flutter analyze` : aucun problème sur les fichiers touchés. `flutter test` : **132/132 verts**. Pas de commit.
+- **Remplace / modifie** : T-036 (point 4, compteur d'en-tête)

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../../../features/dashboard/widgets/quick_action_sheet.dart';
 import '../data/biens_repository.dart';
 import '../data/biens_results.dart';
 import '../models/immeuble.dart';
+import '../models/immeubles_filtre.dart';
 import '../widgets/immeuble_card.dart';
+import '../widgets/immeuble_card_skeleton.dart';
 import 'immeuble_detail_screen.dart';
+import 'nouveau_bien_screen.dart';
 
 /// Écran liste des immeubles réels. Présente les **immeubles** comme
 /// entité principale (chacun avec son taux d'occupation déjà calculé côté
@@ -18,13 +20,35 @@ import 'immeuble_detail_screen.dart';
 class BiensScreen extends StatefulWidget {
   const BiensScreen({super.key});
 
+  /// En-tête « X IMMEUBLES · Y/Z LOTS OCCUPÉS », calculé sur **tous** les
+  /// immeubles (pas la liste filtrée). Y/Z reprennent `lotsOccupes`/`nbLots`
+  /// tels que calculés côté serveur (`bienRoutes.ts` : un lot `reserve`
+  /// compte comme occupé, comme `loue`/`occupe`). Sans aucun lot (Z = 0),
+  /// seule la partie immeubles est affichée.
+  static String enteteLabel(List<Immeuble> immeubles) {
+    final immeublesLabel = '${immeubles.length} IMMEUBLES';
+    final totalLots = immeubles.fold<int>(0, (sum, i) => sum + i.nbLots);
+    if (totalLots == 0) return immeublesLabel;
+    final lotsOccupes = immeubles.fold<int>(0, (sum, i) => sum + i.lotsOccupes);
+    return '$immeublesLabel · $lotsOccupes/$totalLots LOTS OCCUPÉS';
+  }
+
   @override
   State<BiensScreen> createState() => _BiensScreenState();
 }
 
 class _BiensScreenState extends State<BiensScreen> {
+  /// Position du FAB au-dessus de la barre de navigation flottante
+  /// (`AppBottomBar` : 64 px + marge 16 px, posée par `ShellScreen`).
+  static const double _fabBottom = 90;
+
+  /// Marge sous la dernière carte : position du FAB + sa taille (56 px) +
+  /// 16 px d'air, pour que la dernière carte défile au-dessus du FAB.
+  static const double _listBottomInset = _fabBottom + 56 + 16;
+
   final _searchController = TextEditingController();
   String _query = '';
+  ImmeublesFiltre _filtre = ImmeublesFiltre.tous;
   bool _loading = true;
   String? _error;
 
@@ -58,8 +82,13 @@ class _BiensScreenState extends State<BiensScreen> {
     super.dispose();
   }
 
-  void _openQuickActions() {
-    QuickActionSheet.showAndNavigate(context);
+  /// Ouvre directement la création d'immeuble (pas `QuickActionSheet` :
+  /// sur l'onglet Biens, l'intention est sans ambiguïté). Pas de rechargement
+  /// au retour : `createImmeuble` rafraîchit déjà le dépôt, que cet écran
+  /// écoute via `ListenableBuilder`.
+  void _openNouveauBien() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const NouveauBienScreen()));
   }
 
   @override
@@ -68,7 +97,7 @@ class _BiensScreenState extends State<BiensScreen> {
       listenable: BiensRepository.instance,
       builder: (context, _) {
         final all = BiensRepository.instance.immeubles;
-        final filtered = _query.isEmpty
+        final searched = _query.isEmpty
             ? all
             : all
                   .where(
@@ -77,10 +106,19 @@ class _BiensScreenState extends State<BiensScreen> {
                         (i.ville ?? '').toLowerCase().contains(_query),
                   )
                   .toList();
-        final total = all.length;
-        final occupes = all.where((i) => i.lotsOccupes > 0).length;
-
-        return _buildScaffold(context, filtered, total, occupes);
+        // Compteurs des puces calculés après la recherche : chacun annonce
+        // exactement ce que la puce affichera une fois sélectionnée.
+        final counts = {
+          for (final f in ImmeublesFiltre.values)
+            f: searched.where(f.matches).length,
+        };
+        final filtered = searched.where(_filtre.matches).toList();
+        return _buildScaffold(
+          context,
+          filtered,
+          counts,
+          BiensScreen.enteteLabel(all),
+        );
       },
     );
   }
@@ -88,8 +126,8 @@ class _BiensScreenState extends State<BiensScreen> {
   Widget _buildScaffold(
     BuildContext context,
     List<Immeuble> filtered,
-    int total,
-    int occupes,
+    Map<ImmeublesFiltre, int> counts,
+    String entete,
   ) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -107,7 +145,7 @@ class _BiensScreenState extends State<BiensScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$total IMMEUBLES · $occupes AVEC LOCATAIRES',
+                            entete,
                             style: AppTypography.labelUppercase(
                               color: AppColors.mutedForeground,
                             ),
@@ -124,16 +162,63 @@ class _BiensScreenState extends State<BiensScreen> {
                               size: 18,
                               color: AppColors.mutedForeground,
                             ),
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Effacer la recherche',
+                                    onPressed: _searchController.clear,
+                                    icon: Icon(
+                                      LucideIcons.x,
+                                      size: 18,
+                                      color: AppColors.mutedForeground,
+                                    ),
+                                  ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     ),
                   ),
 
-                  if (_loading)
-                    const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
+                  // Puces hors du padding de la colonne : elles défilent
+                  // horizontalement jusqu'aux bords de l'écran.
+                  SliverToBoxAdapter(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      child: Row(
+                        children: [
+                          for (final f in ImmeublesFiltre.values) ...[
+                            if (f != ImmeublesFiltre.values.first)
+                              const SizedBox(width: 8),
+                            AppToggleChip(
+                              label: '${f.label} (${counts[f] ?? 0})',
+                              isSelected: f == _filtre,
+                              onTap: () => setState(() => _filtre = f),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Squelettes seulement au premier chargement : lors d'un
+                  // rafraîchissement (retour de fiche, pull-to-refresh), la
+                  // liste déjà connue reste affichée au lieu de clignoter.
+                  if (_loading && BiensRepository.instance.immeubles.isEmpty)
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            20,
+                            i == 0 ? 0 : 8,
+                            20,
+                            0,
+                          ),
+                          child: const ImmeubleCardSkeleton(),
+                        ),
+                        childCount: 5,
+                      ),
                     )
                   else if (_error != null)
                     SliverFillRemaining(
@@ -179,7 +264,7 @@ class _BiensScreenState extends State<BiensScreen> {
                             20,
                             i == 0 ? 0 : 8,
                             20,
-                            i == filtered.length - 1 ? 100 : 0,
+                            i == filtered.length - 1 ? _listBottomInset : 0,
                           ),
                           child: ImmeubleCard(
                             immeuble: filtered[i],
@@ -205,8 +290,8 @@ class _BiensScreenState extends State<BiensScreen> {
 
             Positioned(
               right: 20,
-              bottom: 90,
-              child: AppFab(onPressed: _openQuickActions),
+              bottom: _fabBottom,
+              child: AppFab(onPressed: _openNouveauBien),
             ),
           ],
         ),
