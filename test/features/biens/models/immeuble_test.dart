@@ -35,4 +35,53 @@ void main() {
       expect(immeuble.mainPhoto, isNull);
     });
   });
+
+  group('Immeuble (fiche détail)', () {
+    test('totalLotsDeclares lit la colonne brute total_lots', () {
+      final immeuble = Immeuble.fromJson({
+        'id': 1,
+        'nom': 'A',
+        'total_lots': '20',
+        'nbLots': 20,
+      });
+
+      expect(immeuble.totalLotsDeclares, 20);
+    });
+
+    test('galerie : photo principale en tête, sans doublon ni vide', () {
+      final immeuble = Immeuble.fromJson({
+        'id': 1,
+        'nom': 'A',
+        'photo': '/b.jpg',
+        'photos': ['/a.jpg', '/b.jpg', ''],
+      });
+
+      expect(immeuble.galerie, ['/b.jpg', '/a.jpg']);
+    });
+
+    test('ownerNomAffiche : « Prénom Nom » pour un particulier', () {
+      final immeuble = Immeuble.fromJson({
+        'id': 1,
+        'nom': 'A',
+        'proprietaire': 'CAMARA Mamadou',
+        'owner_name': 'CAMARA',
+        'owner_first_name': 'Mamadou',
+        'owner_type': 'individual',
+      });
+
+      expect(immeuble.ownerNomAffiche, 'Mamadou CAMARA');
+    });
+
+    test('ownerNomAffiche : raison sociale inchangée', () {
+      final immeuble = Immeuble.fromJson({
+        'id': 1,
+        'nom': 'A',
+        'proprietaire': 'SCI Hope',
+        'owner_name': 'SCI Hope',
+        'owner_type': 'company',
+      });
+
+      expect(immeuble.ownerNomAffiche, 'SCI Hope');
+    });
+  });
 }

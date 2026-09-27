@@ -23,9 +23,13 @@ class Immeuble {
     this.statut = 'actif',
     this.ownerId,
     this.ownerName,
+    this.ownerNom,
+    this.ownerPrenom,
+    this.ownerType,
     this.gestionnaireId,
     this.gestionnaireName,
     this.nbLots = 0,
+    this.totalLotsDeclares,
     this.lotsOccupes = 0,
     this.occupationPercent = 0,
     this.etatOccupation,
@@ -64,12 +68,21 @@ class Immeuble {
       // `proprietaire` : libellé déjà résolu côté serveur (nom + prénom si
       // particulier, raison sociale sinon) — voir `bienRoutes.ts`.
       ownerName: json['proprietaire'] as String?,
+      // Composantes brutes (`o.name`, `o.first_name`, `o.type`), renvoyées
+      // telles quelles par le `...immeuble` de `bienRoutes.ts` — permettent
+      // de recomposer le nom dans l'ordre voulu (voir [ownerNomAffiche]).
+      ownerNom: json['owner_name'] as String?,
+      ownerPrenom: json['owner_first_name'] as String?,
+      ownerType: json['owner_type'] as String?,
       gestionnaireId: _asIntOrNull(json['gestionnaire_id']),
       gestionnaireName: json['gestionnaire_name'] as String?,
       // `nbLots` (calculé serveur : `total_lots` déclaré si non nul, sinon
       // le nombre de lots réellement créés) plutôt que `total_lots` brut,
       // qui peut être 0 si l'utilisateur n'a jamais déclaré de capacité.
       nbLots: _asIntOrNull(json['nbLots']) ?? 0,
+      // Capacité déclarée brute (colonne `total_lots`), distincte de
+      // `nbLots` qui retombe sur le nombre de lots créés quand elle vaut 0.
+      totalLotsDeclares: _asIntOrNull(json['total_lots']),
       lotsOccupes: _asIntOrNull(json['lotsOccupes']) ?? 0,
       occupationPercent: _asIntOrNull(json['occupation']) ?? 0,
       etatOccupation: json['etatOccupation'] as String?,
@@ -101,7 +114,15 @@ class Immeuble {
   final String statut;
 
   final int? ownerId;
+
+  /// Libellé serveur `proprietaire` : « Nom Prénom » pour un particulier
+  /// (`${owner_name} ${owner_first_name}`), raison sociale sinon.
   final String? ownerName;
+  final String? ownerNom;
+  final String? ownerPrenom;
+
+  /// `'individual'` pour un particulier (valeur testée par `bienRoutes.ts`).
+  final String? ownerType;
 
   /// `null` = géré directement par le propriétaire (aucun gestionnaire
   /// assigné) — distinct d'un gestionnaire non résolu.
@@ -109,6 +130,10 @@ class Immeuble {
   final String? gestionnaireName;
 
   final int nbLots;
+
+  /// Capacité prévue saisie à la création (`total_lots`) ; `null` ou 0 si
+  /// jamais déclarée.
+  final int? totalLotsDeclares;
   final int lotsOccupes;
 
   /// 0-100, calculé côté serveur (`lotsOccupes / nbLots`).
@@ -125,6 +150,28 @@ class Immeuble {
   /// mais `photo_url` resté `NULL` en base. Sans ce repli, leur photo
   /// n'apparaît jamais malgré une URL valide et correctement résolue.
   String? get mainPhoto => photo ?? (photos.isNotEmpty ? photos.first : null);
+
+  /// Toutes les photos à afficher, photo principale en tête, sans doublon.
+  List<String> get galerie {
+    final result = <String>[];
+    for (final p in [?photo, ...photos]) {
+      if (p.isNotEmpty && !result.contains(p)) result.add(p);
+    }
+    return result;
+  }
+
+  /// Nom du propriétaire en « Prénom Nom », même ordre que le nom du
+  /// gestionnaire (`users.nom`, champ libre saisi à l'inscription, en
+  /// pratique « Prénom Nom »). Raison sociale inchangée ; repli sur le
+  /// libellé serveur [ownerName] si les composantes sont absentes.
+  String? get ownerNomAffiche {
+    final nom = ownerNom?.trim() ?? '';
+    final prenom = ownerPrenom?.trim() ?? '';
+    if (ownerType == 'individual' && nom.isNotEmpty && prenom.isNotEmpty) {
+      return '$prenom $nom';
+    }
+    return ownerName;
+  }
 }
 
 int? _asIntOrNull(dynamic value) {

@@ -7,6 +7,8 @@ import '../data/biens_repository.dart';
 import '../data/biens_results.dart';
 import '../models/immeuble.dart';
 import '../models/lot.dart';
+import '../models/occupation_immeuble.dart';
+import '../widgets/immeuble_card.dart';
 import 'lot_detail_screen.dart';
 import 'nouveau_lot_screen.dart';
 
@@ -169,7 +171,7 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
 
   Widget _buildTopBar(Immeuble immeuble) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
       child: Row(
         children: [
           IconButton(
@@ -186,9 +188,36 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          IconButton(
-            onPressed: () => _confirmDelete(immeuble),
-            icon: Icon(LucideIcons.trash, size: 20, color: AppColors.error),
+          // « Modifier » volontairement absent : le contrat de mise à jour
+          // (`POST /biens/immeubles` avec `id`) réécrit tous les champs sans
+          // `COALESCE`, en attente de décision (voir journal T-038).
+          PopupMenuButton<String>(
+            tooltip: 'Actions',
+            icon: Icon(
+              LucideIcons.ellipsis_vertical,
+              size: 20,
+              color: AppColors.foreground,
+            ),
+            color: AppColors.card,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderSm),
+            onSelected: (action) {
+              if (action == 'delete') _confirmDelete(immeuble);
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.trash, size: 18, color: AppColors.error),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Supprimer',
+                      style: AppTypography.body(color: AppColors.error),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -200,44 +229,22 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final lots = _lots;
+    final occupation = OccupationImmeuble.fromLots(
+      lots,
+      capacitePrevue: immeuble.totalLotsDeclares,
+    );
+    final description = immeuble.description?.trim() ?? '';
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
         children: [
-          Container(
-            height: 140,
-            decoration: BoxDecoration(
-              color: AppColors.positiveSoft,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Center(
-              child: Icon(
-                LucideIcons.building,
-                size: 56,
-                color: AppColors.primary.withValues(alpha: 0.35),
-              ),
-            ),
-          ),
+          ImmeublePhotoGallery(photos: immeuble.galerie),
           const SizedBox(height: 16),
 
-          Row(
-            children: [
-              _MetricBox(
-                label: 'LOTS',
-                value: '${immeuble.lotsOccupes} / ${immeuble.nbLots}',
-                subtext: 'occupés',
-              ),
-              const SizedBox(width: 8),
-              _MetricBox(
-                label: 'OCCUPATION',
-                value: '${immeuble.occupationPercent}%',
-                subtext: immeuble.etatOccupation ?? '—',
-                highlight: true,
-              ),
-            ],
-          ),
+          _OccupationCard(occupation: occupation),
           const SizedBox(height: 16),
 
           if (_error != null) ...[
@@ -253,6 +260,19 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
               ),
             ),
             const SizedBox(height: 16),
+          ],
+
+          if (description.isNotEmpty) ...[
+            _CardContainer(
+              title: 'DESCRIPTION',
+              children: [
+                Text(
+                  description,
+                  style: AppTypography.body(color: AppColors.foreground),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
           ],
 
           _CardContainer(
@@ -277,13 +297,12 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
               Divider(color: AppColors.border, height: 1),
               _DetailRow(
                 label: 'Propriétaire',
-                value: immeuble.ownerName ?? '—',
+                value: immeuble.ownerNomAffiche ?? '—',
               ),
               Divider(color: AppColors.border, height: 1),
               _DetailRow(
                 label: 'Gestionnaire',
-                value:
-                    immeuble.gestionnaireName ?? 'Géré par le propriétaire',
+                value: immeuble.gestionnaireName ?? 'Géré par le propriétaire',
               ),
             ],
           ),
@@ -293,38 +312,26 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'LOTS (${_lots.length})',
+                'LOTS (${lots.length})',
                 style: AppTypography.labelUppercase(
                   color: AppColors.mutedForeground,
                   fontSize: 10.5,
                 ),
               ),
-              TextButton.icon(
-                onPressed: () => _addLot(immeuble),
-                icon: const Icon(LucideIcons.plus, size: 16),
-                label: const Text('Ajouter'),
-              ),
+              if (lots.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => _addLot(immeuble),
+                  icon: const Icon(LucideIcons.plus, size: 16),
+                  label: const Text('Ajouter'),
+                ),
             ],
           ),
           const SizedBox(height: 8),
 
-          if (_lots.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: AppRadius.borderMd,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Text(
-                'Aucun lot pour cet immeuble pour le moment.',
-                style: AppTypography.bodySmall(
-                  color: AppColors.mutedForeground,
-                ),
-              ),
-            )
+          if (lots.isEmpty)
+            _EmptyLots(onAdd: () => _addLot(immeuble))
           else
-            ..._lots.map(
+            ...lots.map(
               (lot) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _LotRow(
@@ -347,59 +354,219 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
   }
 }
 
-class _MetricBox extends StatelessWidget {
-  const _MetricBox({
-    required this.label,
-    required this.value,
-    required this.subtext,
-    this.highlight = false,
-  });
+/// Galerie d'en-tête : photo principale, défilement horizontal et
+/// indicateur de pages si plusieurs photos, placeholder discret si aucune
+/// (ou en cas d'erreur de chargement).
+class ImmeublePhotoGallery extends StatefulWidget {
+  const ImmeublePhotoGallery({super.key, required this.photos});
 
-  final String label;
-  final String value;
-  final String subtext;
-  final bool highlight;
+  final List<String> photos;
+
+  static const double height = 180;
+
+  @override
+  State<ImmeublePhotoGallery> createState() => _ImmeublePhotoGalleryState();
+}
+
+class _ImmeublePhotoGalleryState extends State<ImmeublePhotoGallery> {
+  int _page = 0;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: highlight ? AppColors.positiveSoft : AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: highlight
-                ? AppColors.primary.withValues(alpha: 0.2)
-                : AppColors.border,
+    final photos = widget.photos;
+
+    return ClipRRect(
+      borderRadius: AppRadius.borderMd,
+      child: SizedBox(
+        height: ImmeublePhotoGallery.height,
+        child: photos.isEmpty
+            ? _placeholder()
+            : Stack(
+                children: [
+                  PageView.builder(
+                    itemCount: photos.length,
+                    onPageChanged: (i) => setState(() => _page = i),
+                    itemBuilder: (_, i) => Image.network(
+                      AppConfig.resolveFileUrl(photos[i]),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (_, _, _) => _placeholder(),
+                    ),
+                  ),
+                  if (photos.length > 1)
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          // Pastille sombre fixe : reste lisible sur
+                          // n'importe quelle photo, en clair comme en sombre.
+                          color: Colors.black.withValues(alpha: 0.55),
+                          borderRadius: AppRadius.borderFull,
+                        ),
+                        child: Text(
+                          '${_page + 1} / ${photos.length}',
+                          style: AppTypography.badge(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return ColoredBox(
+      color: AppColors.secondary,
+      child: Center(
+        child: Icon(
+          LucideIcons.building,
+          size: 32,
+          color: AppColors.primary.withValues(alpha: 0.5),
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte unique « Occupation » (fusion des anciennes cartes LOTS et
+/// OCCUPATION) : état, lots occupés / créés, barre, capacité prévue et
+/// revenu mensuel.
+class _OccupationCard extends StatelessWidget {
+  const _OccupationCard({required this.occupation});
+
+  final OccupationImmeuble occupation;
+
+  @override
+  Widget build(BuildContext context) {
+    final etat = EtatOccupationStyle.of(occupation.etat);
+
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'OCCUPATION',
+                  style: AppTypography.labelUppercase(
+                    color: AppColors.mutedForeground,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              AppBadge(
+                label: etat.label,
+                type: etat.badgeType,
+                isUppercase: true,
+              ),
+            ],
           ),
-          boxShadow: AppShadows.soft,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: AppTypography.labelUppercase(
-                fontSize: 9,
-                color: AppColors.mutedForeground,
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  '${occupation.lotsOccupes} / ${occupation.lotsCrees} '
+                  'occupé${occupation.lotsOccupes > 1 ? 's' : ''}',
+                  style: AppTypography.titleScreen(fontSize: 18),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: AppTypography.titleScreen(
-                fontSize: 16,
-                color: highlight ? AppColors.primary : AppColors.foreground,
+              Text(
+                '${occupation.pourcentage} %',
+                style: AppTypography.titleSection(
+                  fontSize: 15,
+                  color: etat.color,
+                ),
               ),
-              overflow: TextOverflow.ellipsis,
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: AppRadius.borderFull,
+            child: LinearProgressIndicator(
+              value: occupation.ratio,
+              minHeight: 6,
+              backgroundColor: AppColors.muted,
+              valueColor: AlwaysStoppedAnimation(etat.color),
             ),
-            Text(
-              subtext,
-              style: AppTypography.caption(color: AppColors.mutedForeground),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            occupation.libelleCapacite,
+            style: AppTypography.caption(color: AppColors.mutedForeground),
+          ),
+          const SizedBox(height: 12),
+          Divider(color: AppColors.border, height: 1),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(LucideIcons.wallet, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Revenu mensuel',
+                  style: AppTypography.bodySmall(
+                    color: AppColors.mutedForeground,
+                  ),
+                ),
+              ),
+              Text(
+                formatMontant(occupation.revenuMensuel),
+                style: AppTypography.titleSection(fontSize: 15),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyLots extends StatelessWidget {
+  const _EmptyLots({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Icon(
+            LucideIcons.key_round,
+            size: 24,
+            color: AppColors.primary.withValues(alpha: 0.6),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Aucun lot pour cet immeuble pour le moment.',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySmall(color: AppColors.mutedForeground),
+          ),
+          const SizedBox(height: 14),
+          // `AppButton` ne tronque pas son libellé : `scaleDown` le réduit
+          // plutôt que de déborder sur un écran étroit ou avec une grande
+          // taille de texte système (accessibilité).
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: AppButton.primary(
+              label: 'Ajouter le premier lot',
+              icon: const Icon(LucideIcons.plus, size: 18),
+              isFullWidth: false,
+              onPressed: onAdd,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -458,6 +625,7 @@ class _DetailRow extends StatelessWidget {
             label,
             style: AppTypography.bodySmall(color: AppColors.mutedForeground),
           ),
+          const SizedBox(width: 12),
           Flexible(
             child: Text(
               value.isEmpty ? '—' : value,
@@ -473,6 +641,34 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
+/// Libellé et type de badge d'un statut de lot (valeurs backend :
+/// `disponible`, `occupe`/`loue`, `reserve`, `vendu`, `hors_service`).
+({String label, AppBadgeType type}) statutLot(String statut) =>
+    switch (statut.toLowerCase()) {
+      'occupe' || 'loue' => (label: 'Occupé', type: AppBadgeType.positive),
+      'reserve' => (label: 'Réservé', type: AppBadgeType.info),
+      'vendu' => (label: 'Vendu', type: AppBadgeType.neutral),
+      'hors_service' => (label: 'Hors service', type: AppBadgeType.danger),
+      'disponible' => (label: 'Disponible', type: AppBadgeType.warning),
+      // Valeur inconnue (colonne texte libre) : affichée telle quelle.
+      _ => (label: statut, type: AppBadgeType.neutral),
+    };
+
+/// « 1 560 000 F » — même format que `dashboard_data.dart` et
+/// `locataire_detail_screen.dart` (copies privées là-bas, laissées
+/// intactes : hors périmètre).
+String formatMontant(double value) {
+  final rounded = value.round();
+  final isNegative = rounded < 0;
+  final digits = rounded.abs().toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
+    buffer.write(digits[i]);
+  }
+  return '${isNegative ? '-' : ''}$buffer F';
+}
+
 class _LotRow extends StatelessWidget {
   const _LotRow({required this.lot, this.onTap});
 
@@ -481,8 +677,19 @@ class _LotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOccupe = lot.statut == 'occupe';
+    final isOccupe = OccupationImmeuble.estOccupe(lot);
+    final statut = statutLot(lot.statut);
     final mainPhoto = lot.mainPhoto;
+    final fallbackIcon = Icon(
+      isOccupe ? LucideIcons.user : LucideIcons.key_round,
+      size: 18,
+      color: isOccupe ? AppColors.primary : AppColors.mutedForeground,
+    );
+    final sousTitre = [
+      lot.etage,
+      lot.type,
+    ].where((s) => s != null && s.isNotEmpty).join(' · ');
+
     return AppCard(
       onTap: onTap,
       child: Row(
@@ -496,21 +703,9 @@ class _LotRow extends StatelessWidget {
                   ? Image.network(
                       AppConfig.resolveFileUrl(mainPhoto),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(
-                        isOccupe ? LucideIcons.user : LucideIcons.key_round,
-                        size: 18,
-                        color: isOccupe
-                            ? AppColors.primary
-                            : AppColors.mutedForeground,
-                      ),
+                      errorBuilder: (_, _, _) => fallbackIcon,
                     )
-                  : Icon(
-                      isOccupe ? LucideIcons.user : LucideIcons.key_round,
-                      size: 18,
-                      color: isOccupe
-                          ? AppColors.primary
-                          : AppColors.mutedForeground,
-                    ),
+                  : fallbackIcon,
             ),
           ),
           const SizedBox(width: 12),
@@ -520,26 +715,40 @@ class _LotRow extends StatelessWidget {
               children: [
                 Text(
                   lot.reference,
-                  style: AppTypography.bodyMedium(color: AppColors.foreground)
-                      .copyWith(fontWeight: FontWeight.bold),
+                  style: AppTypography.bodyMedium(
+                    color: AppColors.foreground,
+                  ).copyWith(fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  [lot.etage, lot.type, lot.statut]
-                      .where((s) => s != null && s.isNotEmpty)
-                      .join(' · '),
-                  style: AppTypography.caption(
-                    color: AppColors.mutedForeground,
+                if (sousTitre.isNotEmpty)
+                  Text(
+                    sousTitre,
+                    style: AppTypography.caption(
+                      color: AppColors.mutedForeground,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
               ],
             ),
           ),
-          if (lot.loyer != null)
-            Text(
-              '${lot.loyer!.toStringAsFixed(0)} F',
-              style: AppTypography.bodySmall(color: AppColors.foreground)
-                  .copyWith(fontWeight: FontWeight.bold),
-            ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              AppBadge(label: statut.label, type: statut.type),
+              if (lot.loyer != null && lot.loyer! > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  formatMontant(lot.loyer!),
+                  style: AppTypography.bodySmall(
+                    color: AppColors.foreground,
+                  ).copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
