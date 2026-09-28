@@ -51,3 +51,6 @@ app.*.map.json
 # Seul fichier existant à ce jour ; tout futur fichier d'état local sous .claude/
 # (verrous, cache, sessions...) doit être ajouté ici au même titre.
 .claude/scheduled_tasks.lock
+
+# Captures d'écran de test
+flutter_*.png
