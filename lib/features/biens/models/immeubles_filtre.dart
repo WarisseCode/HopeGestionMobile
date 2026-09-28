@@ -1,9 +1,10 @@
 import 'immeuble.dart';
 
-/// Filtres locaux de la liste Biens, appliqués sur `etatOccupation`
-/// (calculé serveur, voir `bienRoutes.ts` : 'Vide' / 'Disponible' /
-/// 'En location' / 'Complet'). Aucun appel réseau : la liste complète est
-/// déjà chargée par `BiensRepository.listImmeubles`.
+/// Filtres locaux de la liste Biens, appliqués sur [Immeuble.etat] — l'état
+/// calculé sur les lots créés (`OccupationRegles`), le même que celui de la
+/// carte et de la fiche détail, et non `etatOccupation` serveur (calculé sur
+/// la capacité déclarée). Aucun appel réseau : la liste complète est déjà
+/// chargée par `BiensRepository.listImmeubles`.
 enum ImmeublesFiltre {
   tous('Tous'),
 
@@ -13,7 +14,7 @@ enum ImmeublesFiltre {
   disponibles('Disponibles'),
   complets('Complets'),
 
-  /// Aucun lot déclaré ni créé.
+  /// Aucun lot créé (même avec une capacité déclarée).
   vides('Vides');
 
   const ImmeublesFiltre(this.label);
@@ -23,10 +24,8 @@ enum ImmeublesFiltre {
   bool matches(Immeuble immeuble) => switch (this) {
     ImmeublesFiltre.tous => true,
     ImmeublesFiltre.disponibles =>
-      immeuble.etatOccupation == 'Disponible' ||
-          immeuble.etatOccupation == 'En location',
-    ImmeublesFiltre.complets => immeuble.etatOccupation == 'Complet',
-    ImmeublesFiltre.vides =>
-      immeuble.etatOccupation == 'Vide' || immeuble.etatOccupation == null,
+      immeuble.etat == 'Disponible' || immeuble.etat == 'En location',
+    ImmeublesFiltre.complets => immeuble.etat == 'Complet',
+    ImmeublesFiltre.vides => immeuble.etat == 'Vide',
   };
 }

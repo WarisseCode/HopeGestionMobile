@@ -48,6 +48,32 @@ void main() {
       expect(immeuble.totalLotsDeclares, 20);
     });
 
+    test('lotsCrees lu depuis la réponse (backend ≥ T-005)', () {
+      final immeuble = Immeuble.fromJson({
+        'id': 1,
+        'nom': 'A',
+        'nbLots': 20,
+        'lotsCrees': 4,
+        'lotsOccupes': 4,
+        'total_lots': 20,
+      });
+
+      expect(immeuble.lotsCrees, 4);
+      expect(immeuble.etat, 'Complet');
+    });
+
+    test('lotsCrees absent (backend antérieur) → repli sur nbLots', () {
+      final immeuble = Immeuble.fromJson({
+        'id': 1,
+        'nom': 'A',
+        'nbLots': 3,
+        'lotsOccupes': 1,
+      });
+
+      expect(immeuble.lotsCrees, 3);
+      expect(immeuble.etat, 'En location');
+    });
+
     test('galerie : photo principale en tête, sans doublon ni vide', () {
       final immeuble = Immeuble.fromJson({
         'id': 1,

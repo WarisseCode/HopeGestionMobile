@@ -1,3 +1,5 @@
+import 'occupation_regles.dart';
+
 /// Immeuble réel, tel que renvoyé par `GET /api/biens/immeubles`
 /// (`HopeGestionV2/backend/routes/bienRoutes.ts`). Entité distincte de
 /// [Lot] côté backend (tables `buildings`/`lots` séparées, liées par
@@ -29,11 +31,12 @@ class Immeuble {
     this.gestionnaireId,
     this.gestionnaireName,
     this.nbLots = 0,
+    int? lotsCrees,
     this.totalLotsDeclares,
     this.lotsOccupes = 0,
     this.occupationPercent = 0,
     this.etatOccupation,
-  });
+  }) : lotsCrees = lotsCrees ?? nbLots;
 
   /// Extraction défensive, même politique que `Locataire.fromJson` : champs
   /// indispensables → `FormatException`, champs optionnels ignorés si
@@ -80,6 +83,10 @@ class Immeuble {
       // le nombre de lots réellement créés) plutôt que `total_lots` brut,
       // qui peut être 0 si l'utilisateur n'a jamais déclaré de capacité.
       nbLots: _asIntOrNull(json['nbLots']) ?? 0,
+      // Lots réellement créés, hors corbeille (ajouté côté serveur en T-005
+      // HopeGestionV2). Absent d'un backend pas encore à jour : repli sur
+      // `nbLots` via le constructeur (exact seulement sans capacité déclarée).
+      lotsCrees: _asIntOrNull(json['lotsCrees']),
       // Capacité déclarée brute (colonne `total_lots`), distincte de
       // `nbLots` qui retombe sur le nombre de lots créés quand elle vaut 0.
       totalLotsDeclares: _asIntOrNull(json['total_lots']),
@@ -131,6 +138,10 @@ class Immeuble {
 
   final int nbLots;
 
+  /// Lots réellement créés (hors corbeille), base de toutes les règles
+  /// d'occupation côté mobile (voir [OccupationRegles]).
+  final int lotsCrees;
+
   /// Capacité prévue saisie à la création (`total_lots`) ; `null` ou 0 si
   /// jamais déclarée.
   final int? totalLotsDeclares;
@@ -140,8 +151,27 @@ class Immeuble {
   final int occupationPercent;
 
   /// 'Vide' / 'Disponible' / 'En location' / 'Complet' — calculé côté
-  /// serveur à partir de `nbLots`/`lotsOccupes`, pas une colonne `statut`.
+  /// serveur à partir de la capacité déclarée, **plus utilisé à l'écran** :
+  /// voir [etat], calculé sur les lots créés comme la fiche détail.
   final String? etatOccupation;
+
+  /// État d'occupation affiché (carte, filtres) : même règle que la fiche.
+  String get etat =>
+      OccupationRegles.etat(lotsCrees: lotsCrees, lotsOccupes: lotsOccupes);
+
+  double get ratioOccupation =>
+      OccupationRegles.ratio(lotsCrees: lotsCrees, lotsOccupes: lotsOccupes);
+
+  int get pourcentageOccupation => OccupationRegles.pourcentage(
+    lotsCrees: lotsCrees,
+    lotsOccupes: lotsOccupes,
+  );
+
+  /// « 0 lot créé · 20 prévus » — même libellé que la fiche.
+  String get libelleCapacite => OccupationRegles.libelleCapacite(
+    lotsCrees: lotsCrees,
+    capacitePrevue: totalLotsDeclares,
+  );
 
   /// `photo` (colonne `photo_url`, la « photo principale ») avec repli sur
   /// la première entrée de `photos` : le web ne renseigne `photo_url` que

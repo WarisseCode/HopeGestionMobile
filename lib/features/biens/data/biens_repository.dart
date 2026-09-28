@@ -179,6 +179,76 @@ class BiensRepository extends ChangeNotifier {
     }
   }
 
+  /// `POST /api/biens/immeubles` **avec `id`** → mise à jour. Le backend
+  /// réécrit chaque colonne sans `COALESCE` (`bienRoutes.ts`) : un champ
+  /// omis est effacé (`NULL`, `[]`, `total_lots` à 0, `nombre_etages` à 1…).
+  /// D'où la signature à champs obligatoires, comme
+  /// `LocatairesRepository.update` : l'écran renvoie la valeur actuelle de
+  /// chaque champ qu'il n'édite pas.
+  ///
+  /// [ownerId] : propriétaire **actuel** de l'immeuble. Depuis T-005
+  /// (HopeGestionV2), le serveur n'écrase plus un propriétaire par `NULL`
+  /// (`COALESCE`), mais l'envoyer reste nécessaire pour un gestionnaire
+  /// multi-propriétaires : `tenantGuard` s'en sert pour cibler le bon
+  /// propriétaire (policy RLS de `buildings`).
+  Future<UpdateImmeubleResult> updateImmeuble({
+    required int id,
+    required String nom,
+    required String? type,
+    required String? adresse,
+    required String? ville,
+    required String? pays,
+    required String? quartier,
+    required String? description,
+    required double? latitude,
+    required double? longitude,
+    required int? gestionnaireId,
+    required String statut,
+    required List<String> photos,
+    required String? photo,
+    required String? videoUrl,
+    required String? planMasseUrl,
+    required int? nombreEtages,
+    required int? totalLots,
+    required int? ownerId,
+  }) async {
+    try {
+      await _apiClient.request<Map<String, dynamic>>(
+        '/biens/immeubles',
+        method: 'POST',
+        data: {
+          'id': id,
+          'nom': nom,
+          'type': type,
+          // `NOT NULL` sur `buildings.adresse` (voir [createImmeuble]).
+          'adresse': adresse ?? '',
+          'ville': ville,
+          'pays': pays,
+          'quartier': quartier,
+          'description': description,
+          'latitude': latitude,
+          'longitude': longitude,
+          'gestionnaire_id': gestionnaireId,
+          'statut': statut,
+          'photos': photos,
+          'photo': photo,
+          'video_url': videoUrl,
+          'plan_masse_url': planMasseUrl,
+          'nombre_etages': nombreEtages,
+          'total_lots': totalLots,
+          'owner_id': ownerId,
+        },
+      );
+      await listImmeubles();
+      return const UpdateImmeubleSuccess();
+    } on ApiException catch (e) {
+      if (e.type == ApiExceptionType.validation) {
+        return UpdateImmeubleValidationFailed(e.message, e.fieldErrors);
+      }
+      return UpdateImmeubleFailure(e.message, e.type);
+    }
+  }
+
   /// `POST /api/biens/lots` (sans `id` dans le corps → création). Un lot
   /// est toujours rattaché à un immeuble existant (400 si [buildingId] ne
   /// résout à rien côté serveur, voir `bienRoutes.ts`) : pas de lot

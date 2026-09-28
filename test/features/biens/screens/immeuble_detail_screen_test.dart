@@ -145,13 +145,13 @@ void main() {
           expect(find.text('2 / 4 occupés'), findsOneWidget);
           expect(find.text('50 %'), findsOneWidget);
           expect(find.text('4 lots créés · 20 prévus'), findsOneWidget);
-          // 185 000 + 600 000 / 3 (trimestriel).
-          expect(find.text('385 000 F'), findsOneWidget);
+          // Revenu : seul le lot occupé (185 000) — le réservé est exclu.
+          // « 185 000 F » apparaît donc deux fois : revenu + loyer du lot.
+          expect(find.text('185 000 F'), findsNWidgets(2));
           expect(find.text('Occupé'), findsOneWidget);
           expect(find.text('Réservé'), findsOneWidget);
           expect(find.text('Disponible'), findsOneWidget);
           expect(find.text('Hors service'), findsOneWidget);
-          expect(find.text('185 000 F'), findsOneWidget);
           expect(find.text('Ajouter le premier lot'), findsNothing);
         },
       );
@@ -169,7 +169,7 @@ void main() {
     expect(find.text('Warisse OTCHADE'), findsOneWidget);
   });
 
-  testWidgets('menu ⋮ : Supprimer (avec confirmation), pas de Modifier', (
+  testWidgets('menu ⋮ : Modifier et Supprimer (avec confirmation)', (
     tester,
   ) async {
     await _pump(tester, dark: false, withPhotos: false, lots: []);
@@ -179,7 +179,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Supprimer'), findsOneWidget);
-    expect(find.text('Modifier'), findsNothing);
+    expect(find.text('Modifier'), findsOneWidget);
 
     await tester.tap(find.text('Supprimer'));
     await tester.pumpAndSettle();

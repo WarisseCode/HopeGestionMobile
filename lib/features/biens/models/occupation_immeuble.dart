@@ -1,12 +1,10 @@
 import 'lot.dart';
+import 'occupation_regles.dart';
 
 /// Occupation d'un immeuble recalculée côté mobile à partir des lots
-/// **réellement créés** (`BiensRepository.lots` filtrés par immeuble).
-///
-/// Le calcul serveur (`bienRoutes.ts`) divise par `total_lots` (capacité
-/// déclarée) quand elle existe : un immeuble déclaré à 20 lots mais sans
-/// aucun lot créé y ressort « Disponible » à 0 %, alors qu'il n'a rien à
-/// louer. Ici, aucun lot créé → « Vide ».
+/// **réellement créés** (`BiensRepository.lots` filtrés par immeuble). Les
+/// règles elles-mêmes sont dans [OccupationRegles], partagées avec la carte
+/// de liste et les filtres.
 class OccupationImmeuble {
   const OccupationImmeuble._({
     required this.lotsCrees,
@@ -16,22 +14,17 @@ class OccupationImmeuble {
   });
 
   factory OccupationImmeuble.fromLots(List<Lot> lots, {int? capacitePrevue}) {
-    final occupes = lots.where(estOccupe).toList();
     return OccupationImmeuble._(
       lotsCrees: lots.length,
-      lotsOccupes: occupes.length,
+      lotsOccupes: lots.where(estOccupe).length,
       capacitePrevue: (capacitePrevue ?? 0) > 0 ? capacitePrevue : null,
-      revenuMensuel: occupes.fold<double>(
-        0,
-        (sum, lot) => sum + loyerMensuel(lot),
-      ),
+      revenuMensuel: lots
+          .where((lot) => OccupationRegles.estLoue(lot.statut))
+          .fold<double>(0, (sum, lot) => sum + loyerMensuel(lot)),
     );
   }
 
-  /// Même règle que le serveur (`bienRoutes.ts`, `lots_occupes`) et que la
-  /// fiche web (`ImmeubleDetailModal.tsx`) : `loue`, `occupe` et `reserve`.
-  static bool estOccupe(Lot lot) =>
-      const ['loue', 'occupe', 'reserve'].contains(lot.statut.toLowerCase());
+  static bool estOccupe(Lot lot) => OccupationRegles.estOccupe(lot.statut);
 
   /// Loyer ramené au mois selon `periodicite` (valeurs du formulaire lot :
   /// mensuel / trimestriel / semestriel / annuel ; absent → mensuel).
@@ -51,31 +44,24 @@ class OccupationImmeuble {
   /// Capacité déclarée (`total_lots`) si > 0, sinon `null`.
   final int? capacitePrevue;
 
-  /// Somme des loyers mensualisés des lots occupés.
+  /// Somme des loyers mensualisés des lots loués ou occupés — **sans les
+  /// réservés**, qui ne rapportent pas encore de loyer (alors qu'ils
+  /// comptent dans le taux d'occupation).
   final double revenuMensuel;
 
-  /// 0-100, sur les lots créés (0 si aucun lot).
-  int get pourcentage =>
-      lotsCrees == 0 ? 0 : (lotsOccupes * 100 / lotsCrees).round();
+  int get pourcentage => OccupationRegles.pourcentage(
+    lotsCrees: lotsCrees,
+    lotsOccupes: lotsOccupes,
+  );
 
-  double get ratio => lotsCrees == 0 ? 0 : lotsOccupes / lotsCrees;
+  double get ratio =>
+      OccupationRegles.ratio(lotsCrees: lotsCrees, lotsOccupes: lotsOccupes);
 
-  /// Mêmes libellés que `etatOccupation` serveur, pour réutiliser
-  /// `EtatOccupationStyle` (T-036).
-  String get etat {
-    if (lotsCrees == 0) return 'Vide';
-    if (lotsOccupes >= lotsCrees) return 'Complet';
-    if (lotsOccupes > 0) return 'En location';
-    return 'Disponible';
-  }
+  String get etat =>
+      OccupationRegles.etat(lotsCrees: lotsCrees, lotsOccupes: lotsOccupes);
 
-  /// « 0 lot créé · 20 prévus », « 3 lots créés » (capacité égale ou
-  /// absente), « 1 lot créé · 1 prévu »…
-  String get libelleCapacite {
-    final crees = '$lotsCrees lot${lotsCrees > 1 ? 's' : ''} '
-        'créé${lotsCrees > 1 ? 's' : ''}';
-    final prevue = capacitePrevue;
-    if (prevue == null || prevue == lotsCrees) return crees;
-    return '$crees · $prevue prévu${prevue > 1 ? 's' : ''}';
-  }
+  String get libelleCapacite => OccupationRegles.libelleCapacite(
+    lotsCrees: lotsCrees,
+    capacitePrevue: capacitePrevue,
+  );
 }

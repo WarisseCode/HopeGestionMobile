@@ -24,26 +24,16 @@ class ImmeubleCard extends StatelessWidget {
   /// trop écrasée quand le texte est court.
   static const double minHeight = 112;
 
-  /// Libellé d'occupation avec accord correct (« 0 lot occupé sur 2 »,
-  /// « 2 lots occupés sur 3 »). En français, 0 et 1 restent au singulier.
-  static String occupationLabel(int occupes, int total) {
-    if (total <= 0) return 'Aucun lot déclaré';
-    final pluriel = occupes > 1;
-    return '$occupes lot${pluriel ? 's' : ''} occupé${pluriel ? 's' : ''} '
-        'sur $total';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final etat = EtatOccupationStyle.of(immeuble.etatOccupation);
-    final ratio = immeuble.nbLots > 0
-        ? (immeuble.lotsOccupes / immeuble.nbLots).clamp(0.0, 1.0)
-        : 0.0;
+    // État, barre et libellé : mêmes règles que la fiche détail
+    // (`OccupationRegles`, sur les lots créés), pas `etatOccupation` serveur.
+    final etat = EtatOccupationStyle.of(immeuble.etat);
     final sousTitre = [
       immeuble.type,
       immeuble.ville,
     ].where((s) => s != null && s.isNotEmpty).join(' · ');
-    final owner = immeuble.ownerName?.trim();
+    final owner = immeuble.ownerNomAffiche?.trim();
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -117,19 +107,35 @@ class ImmeubleCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: AppRadius.borderFull,
                       child: LinearProgressIndicator(
-                        value: ratio,
+                        value: immeuble.ratioOccupation,
                         minHeight: 4,
                         backgroundColor: AppColors.muted,
                         valueColor: AlwaysStoppedAnimation(etat.color),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      occupationLabel(immeuble.lotsOccupes, immeuble.nbLots),
-                      style: AppTypography.bodySmall(
-                        color: AppColors.foreground,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            immeuble.libelleCapacite,
+                            style: AppTypography.bodySmall(
+                              color: AppColors.foreground,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${immeuble.pourcentageOccupation} %',
+                          style: AppTypography.bodySmall(
+                            color: etat.color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

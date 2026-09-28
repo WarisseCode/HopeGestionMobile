@@ -204,6 +204,115 @@ void main() {
     });
   });
 
+  group('updateImmeuble (POST /biens/immeubles avec id)', () {
+    Future<UpdateImmeubleResult> update(
+      BiensRepository repo, {
+      int? ownerId = 7,
+    }) => repo.updateImmeuble(
+      id: 1,
+      nom: 'Résidence Palmiers',
+      type: 'Immeuble',
+      adresse: null,
+      ville: 'Cotonou',
+      pays: 'Bénin',
+      quartier: 'Haie Vive',
+      description: 'R+3',
+      latitude: 6.36,
+      longitude: 2.42,
+      gestionnaireId: 12,
+      statut: 'actif',
+      photos: const ['/uploads/properties/a.jpg', '/uploads/properties/b.jpg'],
+      photo: '/uploads/properties/a.jpg',
+      videoUrl: 'https://video.test/v.mp4',
+      planMasseUrl: '/uploads/plans/p.pdf',
+      nombreEtages: 0,
+      totalLots: 20,
+      ownerId: ownerId,
+    );
+
+    test(
+      'envoie TOUS les champs (réécriture sans COALESCE), dont owner_id, '
+      'puis rafraîchit',
+      () async {
+        Map? sent;
+        var getCalls = 0;
+        final repo = _repo((options) async {
+          if (options.method == 'POST' && options.path == '/biens/immeubles') {
+            sent = options.data as Map;
+            return jsonResponse(_immeubleJson(), 200);
+          }
+          if (options.method == 'GET' && options.path == '/biens/immeubles') {
+            getCalls++;
+            return jsonResponse({
+              'immeubles': [_immeubleJson()],
+            }, 200);
+          }
+          throw UnimplementedError('${options.method} ${options.path}');
+        });
+
+        final result = await update(repo);
+
+        expect(result, isA<UpdateImmeubleSuccess>());
+        expect(getCalls, 1);
+        expect(sent, {
+          'id': 1,
+          'nom': 'Résidence Palmiers',
+          'type': 'Immeuble',
+          // `adresse` NOT NULL côté base : chaîne vide plutôt que null.
+          'adresse': '',
+          'ville': 'Cotonou',
+          'pays': 'Bénin',
+          'quartier': 'Haie Vive',
+          'description': 'R+3',
+          'latitude': 6.36,
+          'longitude': 2.42,
+          'gestionnaire_id': 12,
+          'statut': 'actif',
+          'photos': ['/uploads/properties/a.jpg', '/uploads/properties/b.jpg'],
+          'photo': '/uploads/properties/a.jpg',
+          'video_url': 'https://video.test/v.mp4',
+          'plan_masse_url': '/uploads/plans/p.pdf',
+          'nombre_etages': 0,
+          'total_lots': 20,
+          'owner_id': 7,
+        });
+      },
+    );
+
+    test('les champs vides sont envoyés à null, jamais omis', () async {
+      Map? sent;
+      final repo = _repo((options) async {
+        if (options.method == 'POST') {
+          sent = options.data as Map;
+          return jsonResponse(_immeubleJson(), 200);
+        }
+        return jsonResponse({'immeubles': <dynamic>[]}, 200);
+      });
+
+      await update(repo, ownerId: null);
+
+      expect(sent!.containsKey('owner_id'), isTrue);
+      expect(sent!['owner_id'], isNull);
+    });
+
+    test('404 (introuvable ou non visible par RLS) → UpdateImmeubleFailure',
+        () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'message': 'Immeuble non trouvé ou accès non autorisé.',
+        }, 404),
+      );
+
+      final result = await update(repo);
+
+      expect(result, isA<UpdateImmeubleFailure>());
+      expect(
+        (result as UpdateImmeubleFailure).type,
+        ApiExceptionType.notFound,
+      );
+    });
+  });
+
   group('createLot (POST /biens/lots)', () {
     test('succès : envoie les champs attendus puis rafraîchit', () async {
       var postCalls = 0;

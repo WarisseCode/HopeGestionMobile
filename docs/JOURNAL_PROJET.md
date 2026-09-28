@@ -582,7 +582,7 @@ session/projet que le chantier est piloté.
 
 ### T-037 : En-tête de la liste Biens en lots occupés (complément de T-036)
 - **Date** : 2026-09-27
-- **Statut** : Terminée
+- **Statut** : Modifiée (voir T-040)
 - **Type** : Fonctionnalité
 - **Description** : Suite à la relecture de T-036 (point 4 laissé en attente), l'en-tête de `BiensScreen` passe de « X IMMEUBLES · Y AVEC LOCATAIRES » à « X IMMEUBLES · Y/Z LOTS OCCUPÉS ». Y = somme des `lotsOccupes`, Z = somme des `nbLots`, sur tous les immeubles (pas la liste filtrée). Si Z = 0, seul « X IMMEUBLES » est affiché.
 - **Fichiers touchés** :
@@ -595,7 +595,7 @@ session/projet que le chantier est piloté.
 
 ### T-038 : Amélioration UI/UX de la fiche détail immeuble
 - **Date** : 2026-09-27
-- **Statut** : Terminée
+- **Statut** : Modifiée (voir T-039)
 - **Type** : Fonctionnalité
 - **Description** : Refonte d'`ImmeubleDetailScreen` : galerie photo réelle (défilement + compteur « 1 / N »), carte unique d'occupation calculée sur les lots réellement créés (état, barre, capacité prévue, revenu mensuel), menu « ⋮ » à la place de la corbeille, badges de statut des lots et loyers formatés, bouton « Ajouter le premier lot », description, propriétaire au format « Prénom Nom ». « Modifier » n'est pas implémenté : le contrat serveur a été analysé et est rapporté ci-dessous pour décision.
 - **Fichiers touchés** :
@@ -617,3 +617,48 @@ session/projet que le chantier est piloté.
   - **État d'occupation serveur** : même défaut que celui corrigé ici côté mobile. Avec `total_lots` = 20 et aucun lot créé, `etatOccupation` vaut « Disponible » (0/20). Le web n'affiche pas `etatOccupation` (aucune occurrence dans `frontend/src`) ; sa fiche recalcule le taux sur `total_lots || lots.length`, donc 0 % sur 20 prévus, sans état. Côté mobile, la **liste** (`ImmeubleCard`, T-036) utilise encore l'état serveur et affiche donc « Disponible » pour ces immeubles.
   - **Comptage des lots supprimés** : dans `GET /biens/immeubles`, `LEFT JOIN lots l ON l.building_id = b.id` ne filtre pas `l.deleted_at IS NULL`. `nb_lots` et `lots_occupes` incluent donc les lots en corbeille, alors que `GET /biens/lots` les exclut.
 - **Problèmes rencontrés** : débordement du bouton « Ajouter le premier lot » sous la police de test, corrigé comme décrit ci-dessus. Pas de `dart format` lancé (leçon de T-036) : aucun fichier hors périmètre modifié. `flutter analyze` : aucun problème sur les fichiers touchés. `flutter test` : **152/152 verts**. Pas de commit.
+
+### T-039 : Modification d'immeuble + règle d'occupation unique (liste, filtres, fiche)
+- **Date** : 2026-09-27
+- **Statut** : Modifiée (voir T-040)
+- **Type** : Fonctionnalité
+- **Description** : Ajout de l'écran « Modifier l'immeuble » (menu ⋮ de la fiche) et de `BiensRepository.updateImmeuble()`, qui renvoie tous les champs, dont le propriétaire actuel. La règle d'occupation (état, taux, libellé de capacité) est factorisée dans un seul fichier, utilisé par la fiche, la carte de liste et les filtres, qui n'utilisent plus `etatOccupation` serveur. Le revenu mensuel exclut désormais les lots réservés, et `lotsCrees` (T-005 HopeGestionV2) est lu.
+- **Vérification préalable (point 1)** : `GET /biens/immeubles` (`bienRoutes.ts`) renvoie bien tous les champs à renvoyer : `nom`, `type`, `adresse`, `ville`, `pays`, `quartier`, `description`, `latitude`, `longitude`, `gestionnaire_id`, `statut`, `photos`, `photo` (alias de `photo_url`), `video_url`, `plan_masse_url`, `nombre_etages`, `total_lots`, `owner_id`. Tous étaient déjà parsés dans `Immeuble.fromJson` ; seul `lotsCrees` était nouveau.
+- **Fichiers touchés** :
+  - `lib/features/biens/models/occupation_regles.dart` (nouveau) : **seul endroit** des règles : statuts occupés (`loue`/`occupe`/`reserve`), statuts loués (`loue`/`occupe`), `etat()`, `ratio()`, `pourcentage()`, `libelleCapacite()`, tous calculés sur les lots créés.
+  - `lib/features/biens/models/occupation_immeuble.dart` : délègue à `OccupationRegles` ; revenu mensuel limité aux lots loués/occupés.
+  - `lib/features/biens/models/immeuble.dart` : champ `lotsCrees` (repli sur `nbLots` si absent), getters `etat`, `ratioOccupation`, `pourcentageOccupation`, `libelleCapacite`.
+  - `lib/features/biens/models/immeubles_filtre.dart` : filtres sur `Immeuble.etat`.
+  - `lib/features/biens/widgets/immeuble_card.dart` : état, barre et libellé via `OccupationRegles` (« 4 lots créés · 10 prévus » + « 100 % ») ; propriétaire via `ownerNomAffiche` ; `occupationLabel()` (« X lots occupés sur Y ») supprimé.
+  - `lib/features/biens/data/biens_repository.dart` / `biens_results.dart` : `updateImmeuble()` (tous les paramètres `required`, même les nullables) + `UpdateImmeubleResult` (`Success`/`ValidationFailed`/`Failure`).
+  - `lib/features/biens/screens/edit_immeuble_screen.dart` (nouveau) : formulaire sur une page (photos, nom, type, étages, capacité, description, adresse, quartier, ville, pays, statut).
+  - `lib/features/biens/widgets/immeuble_photos_picker.dart` (nouveau) : sélecteur de photos extrait tel quel de l'étape 1 de création (widget contrôlé `photoUrls`/`onChanged`).
+  - `lib/features/biens/steps/immeuble_step1_identite.dart` : utilise `ImmeublePhotosPicker` (refactorisation sans changement de comportement, -174 lignes).
+  - `lib/features/biens/screens/immeuble_detail_screen.dart` : entrée « Modifier » dans le menu ⋮, reconstruction au retour.
+  - Tests : `biens_repository_test.dart` (+3 : corps complet exact dont `owner_id`, champ vide envoyé à `null` et jamais omis, 404) ; `edit_immeuble_screen_test.dart` (nouveau : rendu clair/sombre × avec/sans photos, champs non éditables renvoyés, validation, suppression de photo) ; `immeuble_card_test.dart` (cohérence carte/fiche, dont 4 lots créés tous occupés sur 10 prévus = Complet, cas Vide, propriétaire) ; `immeubles_filtre_test.dart` (réécrit sur l'état calculé) ; `immeuble_test.dart` (+2 : `lotsCrees` et son repli) ; `occupation_immeuble_test.dart` (revenu sans les réservés) ; `immeuble_detail_screen_test.dart` et `widget_test.dart` (libellés mis à jour).
+- **Décisions & justifications** :
+  - Champs renvoyés tels quels (non éditables à l'écran) : `latitude`, `longitude`, `gestionnaire_id`, `video_url`, `plan_masse_url`, `owner_id`. Les listes Type, Pays et Statut ajoutent la valeur actuelle si elle n'y figure pas (valeur saisie côté web), pour ne jamais la perdre à l'enregistrement.
+  - Photos : l'écran part de `Immeuble.galerie` (photo principale en tête) et envoie `photos` = la liste, `photo` = sa première entrée (ou `null` si vide). Conséquence : une ancienne `photo_url` absente de `photos` y est ajoutée à la première modification. C'est voulu, pour que la photo principale ne soit plus stockée à part.
+  - Étages ou capacité vides → `null` : le serveur applique alors ses replis (1 étage, 0 lot prévu). 0 étage est conservé (T-005).
+  - Sélecteur de photos extrait en widget plutôt que dupliqué (même raison que `AvatarPicker`, T-035). `NouveauLotScreen` garde sa propre copie du même code : non touché, hors périmètre, candidat à la même extraction.
+  - Repli de `lotsCrees` sur `nbLots`, comme demandé : exact seulement si l'immeuble n'a pas de capacité déclarée (sinon `nbLots` = capacité). Sans objet une fois T-005 déployé.
+- **Point laissé en l'état, à décider** : l'en-tête de la liste (« X IMMEUBLES · Y/Z LOTS OCCUPÉS », T-037) somme toujours `nbLots` (capacité déclarée, sinon lots créés) pour Z, comme décidé en T-037. Les cartes raisonnent désormais sur les lots créés. Un immeuble à 4/4 lots créés sur 10 prévus apparaît donc « Complet » sur sa carte, mais compte 4/10 dans l'en-tête. Remplacer `nbLots` par `lotsCrees` dans `BiensScreen.enteteLabel` alignerait les deux.
+- **Problèmes rencontrés** : aucun. Pas de `dart format` lancé : `git status` ne montre que les fichiers listés ci-dessus. `flutter analyze` : aucun nouveau problème (les 14 `info` `use_null_aware_elements` de `biens_repository.dart` sont préexistants, seules leurs lignes ont bougé). `flutter test` : **165/165 verts**. Pas de commit.
+- **Remplace / modifie** : T-038 (revenu mensuel sans les réservés, règle d'occupation factorisée, « Modifier » ajouté au menu) ; T-036 (carte et filtres sur l'état calculé au lieu de `etatOccupation` serveur, libellé d'occupation de la carte remplacé).
+
+### T-040 : En-tête Biens sur les lots créés + sélecteur de photos partagé avec les lots (complément de T-039)
+- **Date** : 2026-09-28
+- **Statut** : Terminée
+- **Type** : Refactorisation
+- **Description** : Deux ajustements demandés après relecture de T-039. L'en-tête de la liste Biens calcule désormais « Y/Z LOTS OCCUPÉS » avec Z = somme des `lotsCrees` (et non plus `nbLots`), comme les cartes et la fiche. `NouveauLotScreen` utilise le sélecteur de photos partagé, renommé `PhotosPicker` puisqu'il sert aux immeubles et aux lots.
+- **Fichiers touchés** :
+  - `lib/features/biens/screens/biens_screen.dart` : `enteteLabel()` somme `lotsCrees` ; même règle qu'en T-037 si le total vaut 0 (seulement « X IMMEUBLES »).
+  - `lib/features/biens/widgets/immeuble_photos_picker.dart` → renommé `photos_picker.dart`, classe `ImmeublePhotosPicker` → `PhotosPicker` (fichier créé en T-039, jamais commité, donc simple renommage) ; commentaire d'en-tête mis à jour.
+  - `lib/features/biens/screens/nouveau_lot_screen.dart` : copie locale du sélecteur supprimée (état d'upload, `_pickAndUploadPhotos`, `_removePhoto`, bloc d'affichage) au profit de `PhotosPicker` ; imports devenus inutiles retirés (`dart:io`, `image_picker`, `AppConfig`, `AuthRepository`, `PhotoUploadRepository`). 5 insertions, 180 suppressions.
+  - `lib/features/biens/steps/immeuble_step1_identite.dart`, `lib/features/biens/screens/edit_immeuble_screen.dart`, `test/features/biens/screens/edit_immeuble_screen_test.dart` : imports et nom de classe adaptés.
+  - `test/features/biens/screens/biens_screen_test.dart` : +3 tests (Z = lots créés et non la capacité : 4/4 sur 10 prévus compte 4/4 ; repli sur `nbLots` si `lotsCrees` absent ; capacité déclarée sans lot créé → « X IMMEUBLES »).
+- **Décisions & justifications** :
+  - Aucun changement de comportement pour les lots : le bloc de `NouveauLotScreen` était identique ligne à ligne au widget extrait en T-039 (même libellé « Photos (optionnel) », même limite de 10, même upload `uploadPropertyPhoto`, donc `type: 'property'`, même message d'erreur). Le formulaire garde sa liste `_photoUrls` et l'envoie toujours à `createLot` (`null` si vide).
+  - Smoke test (`widget_test.dart`) inchangé : ses fixtures n'ont pas `lotsCrees`, donc le repli sur `nbLots` donne toujours « 2 IMMEUBLES · 3/4 LOTS OCCUPÉS ».
+- **Problèmes rencontrés** : aucun. Pas de `dart format` lancé. `flutter analyze` sur les 7 fichiers touchés : aucun problème. `flutter test` : **168/168 verts**. Aucun test de widget n'existe pour `NouveauLotScreen` (ni avant ni après). Constat hors tâche : `git status` montre `flutter_01.png` à `flutter_04.png` (fichiers suivis) supprimés du répertoire de travail, suppression non faite par cette tâche ; laissés en l'état. Pas de commit.
+- **Remplace / modifie** : T-039 (nom et emplacement du sélecteur de photos) ; T-037 (Z de l'en-tête : `lotsCrees` au lieu de `nbLots`).

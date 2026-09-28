@@ -1,15 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/config/app_config.dart';
 import '../../../../core/design_system.dart';
-import '../../auth/data/auth_repository.dart';
-import '../data/photo_upload_repository.dart';
 import '../models/nouveau_immeuble_form.dart';
+import '../widgets/photos_picker.dart';
 
 /// Étape 1 : Identité de l'immeuble (nom, type, étages, capacité prévue,
 /// photos).
@@ -26,11 +21,6 @@ class _ImmeubleStep1IdentiteState extends State<ImmeubleStep1Identite> {
   late final TextEditingController _etagesCtrl;
   late final TextEditingController _lotsCtrl;
   late final TextEditingController _descCtrl;
-  late final PhotoUploadRepository _photoUploadRepository;
-  final ImagePicker _picker = ImagePicker();
-
-  bool _uploadingPhotos = false;
-  String? _photoError;
 
   @override
   void initState() {
@@ -40,9 +30,6 @@ class _ImmeubleStep1IdentiteState extends State<ImmeubleStep1Identite> {
     _etagesCtrl = TextEditingController(text: f.nombreEtages.toString());
     _lotsCtrl = TextEditingController(text: f.totalLots?.toString() ?? '');
     _descCtrl = TextEditingController(text: f.description);
-    _photoUploadRepository = PhotoUploadRepository(
-      apiClient: AuthRepository.instance.apiClient,
-    );
 
     _nomCtrl.addListener(() => f.nom = _nomCtrl.text);
     _etagesCtrl.addListener(
@@ -61,52 +48,6 @@ class _ImmeubleStep1IdentiteState extends State<ImmeubleStep1Identite> {
     _lotsCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickAndUploadPhotos() async {
-    final List<XFile> picked;
-    try {
-      picked = await _picker.pickMultiImage(imageQuality: 85);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _photoError = 'Impossible d\'ouvrir la galerie.');
-      return;
-    }
-    if (picked.isEmpty) return;
-
-    setState(() {
-      _uploadingPhotos = true;
-      _photoError = null;
-    });
-
-    var failureCount = 0;
-    String? lastFailureMessage;
-    final remainingSlots = 10 - widget.form.photoUrls.length;
-    for (final xfile in picked.take(remainingSlots < 0 ? 0 : remainingSlots)) {
-      final result = await _photoUploadRepository.uploadPropertyPhoto(
-        File(xfile.path),
-      );
-      if (!mounted) return;
-      switch (result) {
-        case UploadPhotoSuccess(path: final path):
-          setState(() => widget.form.photoUrls.add(path));
-        case UploadPhotoFailure(message: final message):
-          failureCount++;
-          lastFailureMessage = message;
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _uploadingPhotos = false;
-      _photoError = failureCount == 0
-          ? null
-          : '$failureCount photo(s) non envoyée(s) : $lastFailureMessage';
-    });
-  }
-
-  void _removePhoto(int index) {
-    setState(() => widget.form.photoUrls.removeAt(index));
   }
 
   @override
@@ -180,121 +121,10 @@ class _ImmeubleStep1IdentiteState extends State<ImmeubleStep1Identite> {
           ),
           const SizedBox(height: 24),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Photos (optionnel)', style: AppTypography.labelField()),
-              Text(
-                '${widget.form.photoUrls.length}/10',
-                style: AppTypography.bodySmall(
-                  color: AppColors.mutedForeground,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          PhotosPicker(
+            photoUrls: widget.form.photoUrls,
+            onChanged: (urls) => setState(() => widget.form.photoUrls = urls),
           ),
-          const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              if (widget.form.photoUrls.length < 10)
-                InkWell(
-                  onTap: _uploadingPhotos ? null : _pickAndUploadPhotos,
-                  borderRadius: AppRadius.borderMd,
-                  child: Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: AppColors.inputFill,
-                      borderRadius: AppRadius.borderMd,
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: _uploadingPhotos
-                        ? const Center(
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                LucideIcons.camera,
-                                size: 22,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Ajouter',
-                                style: AppTypography.kpiNote(
-                                  color: AppColors.primary,
-                                  fontSize: 11,
-                                ).copyWith(fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ...widget.form.photoUrls.asMap().entries.map((entry) {
-                final index = entry.key;
-                final path = entry.value;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    ClipRRect(
-                      borderRadius: AppRadius.borderMd,
-                      child: Image.network(
-                        AppConfig.resolveFileUrl(path),
-                        width: 88,
-                        height: 88,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 88,
-                          height: 88,
-                          color: AppColors.muted,
-                          child: Icon(
-                            LucideIcons.image_off,
-                            size: 22,
-                            color: AppColors.mutedForeground,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: -6,
-                      right: -6,
-                      child: GestureDetector(
-                        onTap: () => _removePhoto(index),
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            LucideIcons.x,
-                            size: 12,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ),
-          if (_photoError != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _photoError!,
-              style: AppTypography.bodySmall(color: AppColors.error),
-            ),
-          ],
         ],
       ),
     );

@@ -53,6 +53,28 @@ class CreateImmeubleFailure extends CreateImmeubleResult {
   final ApiExceptionType type;
 }
 
+sealed class UpdateImmeubleResult {
+  const UpdateImmeubleResult();
+}
+
+class UpdateImmeubleSuccess extends UpdateImmeubleResult {
+  const UpdateImmeubleSuccess();
+}
+
+class UpdateImmeubleValidationFailed extends UpdateImmeubleResult {
+  const UpdateImmeubleValidationFailed(this.message, this.fieldErrors);
+  final String message;
+  final Map<String, String> fieldErrors;
+}
+
+/// Inclut le 404 renvoyé quand l'immeuble est introuvable ou non visible
+/// par la policy RLS (`POST /api/biens/immeubles`, branche `id`).
+class UpdateImmeubleFailure extends UpdateImmeubleResult {
+  const UpdateImmeubleFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}
+
 sealed class CreateLotResult {
   const CreateLotResult();
 }

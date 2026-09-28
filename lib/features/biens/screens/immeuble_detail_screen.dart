@@ -9,6 +9,7 @@ import '../models/immeuble.dart';
 import '../models/lot.dart';
 import '../models/occupation_immeuble.dart';
 import '../widgets/immeuble_card.dart';
+import 'edit_immeuble_screen.dart';
 import 'lot_detail_screen.dart';
 import 'nouveau_lot_screen.dart';
 
@@ -73,6 +74,15 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
     );
     if (!mounted) return;
     await BiensRepository.instance.listLots();
+  }
+
+  Future<void> _edit(Immeuble immeuble) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => EditImmeubleScreen(immeuble: immeuble)),
+    );
+    // `updateImmeuble` a rechargé `BiensRepository.immeubles` : reconstruire
+    // pour relire l'immeuble à jour (cet écran n'écoute pas le dépôt).
+    if (mounted) setState(() {});
   }
 
   Future<void> _confirmDelete(Immeuble immeuble) async {
@@ -188,9 +198,6 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // « Modifier » volontairement absent : le contrat de mise à jour
-          // (`POST /biens/immeubles` avec `id`) réécrit tous les champs sans
-          // `COALESCE`, en attente de décision (voir journal T-038).
           PopupMenuButton<String>(
             tooltip: 'Actions',
             icon: Icon(
@@ -201,9 +208,27 @@ class _ImmeubleDetailScreenState extends State<ImmeubleDetailScreen> {
             color: AppColors.card,
             shape: RoundedRectangleBorder(borderRadius: AppRadius.borderSm),
             onSelected: (action) {
+              if (action == 'edit') _edit(immeuble);
               if (action == 'delete') _confirmDelete(immeuble);
             },
             itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(
+                      LucideIcons.file_pen,
+                      size: 18,
+                      color: AppColors.foreground,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Modifier',
+                      style: AppTypography.body(color: AppColors.foreground),
+                    ),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'delete',
                 child: Row(

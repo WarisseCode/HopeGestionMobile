@@ -302,9 +302,11 @@ void main() {
 
     // Immeubles de la liste (voir _shellResponder, /biens/immeubles).
     expect(find.text('Résidence Palmiers'), findsOneWidget);
-    expect(find.text('3 lots occupés sur 3'), findsOneWidget);
+    // Fixtures sans `lotsCrees` (backend antérieur à T-005) : repli sur
+    // `nbLots`, sans capacité déclarée.
+    expect(find.text('3 lots créés'), findsOneWidget);
     expect(find.text('Villa Almadies'), findsOneWidget);
-    expect(find.text('0 lot occupé sur 1'), findsOneWidget);
+    expect(find.text('1 lot créé'), findsOneWidget);
 
     // Propriétaire (`proprietaire` résolu côté serveur).
     expect(find.text('Mamadou Camara'), findsOneWidget);

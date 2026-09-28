@@ -65,7 +65,8 @@ void main() {
       );
     });
 
-    test('revenu mensuel : lots occupés seulement, loyers mensualisés', () {
+    test('revenu mensuel : loués/occupés seulement (pas les réservés), '
+        'loyers mensualisés', () {
       final o = OccupationImmeuble.fromLots([
         _lot('occupe', loyer: 100000),
         _lot('reserve', loyer: 300000, periodicite: 'trimestriel'),
@@ -75,7 +76,11 @@ void main() {
         _lot('occupe'),
       ]);
 
-      expect(o.revenuMensuel, 400000);
+      // 100 000 (occupe) + 1 200 000 / 12 (loue, annuel) + 600 000 / 6
+      // (loue, semestriel) ; le réservé et le disponible sont exclus.
+      expect(o.revenuMensuel, 300000);
+      // Le réservé compte toujours dans le taux d'occupation.
+      expect(o.lotsOccupes, 5);
     });
   });
 }

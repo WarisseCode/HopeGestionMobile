@@ -21,13 +21,15 @@ class BiensScreen extends StatefulWidget {
   const BiensScreen({super.key});
 
   /// En-tête « X IMMEUBLES · Y/Z LOTS OCCUPÉS », calculé sur **tous** les
-  /// immeubles (pas la liste filtrée). Y/Z reprennent `lotsOccupes`/`nbLots`
-  /// tels que calculés côté serveur (`bienRoutes.ts` : un lot `reserve`
-  /// compte comme occupé, comme `loue`/`occupe`). Sans aucun lot (Z = 0),
-  /// seule la partie immeubles est affichée.
+  /// immeubles (pas la liste filtrée). Y = somme des `lotsOccupes` (règle
+  /// serveur `bienRoutes.ts` : un lot `reserve` compte comme occupé), Z =
+  /// somme des `lotsCrees` — lots réellement créés, comme les cartes et la
+  /// fiche (`OccupationRegles`), et non `nbLots` qui vaut la capacité
+  /// déclarée quand elle existe. Sans aucun lot créé (Z = 0), seule la
+  /// partie immeubles est affichée.
   static String enteteLabel(List<Immeuble> immeubles) {
     final immeublesLabel = '${immeubles.length} IMMEUBLES';
-    final totalLots = immeubles.fold<int>(0, (sum, i) => sum + i.nbLots);
+    final totalLots = immeubles.fold<int>(0, (sum, i) => sum + i.lotsCrees);
     if (totalLots == 0) return immeublesLabel;
     final lotsOccupes = immeubles.fold<int>(0, (sum, i) => sum + i.lotsOccupes);
     return '$immeublesLabel · $lotsOccupes/$totalLots LOTS OCCUPÉS';
