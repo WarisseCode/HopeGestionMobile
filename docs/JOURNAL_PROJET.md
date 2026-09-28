@@ -665,7 +665,7 @@ session/projet que le chantier est piloté.
 
 ### T-041 : Phase 4.5 Finances — diagnostic backend, proposition de périmètre, modèles et repository (lecture)
 - **Date** : 2026-09-28
-- **Statut** : Terminée
+- **Statut** : Modifiée (voir T-042)
 - **Type** : Fonctionnalité
 - **Description** : Diagnostic du backend Finances fait sur le code réel (`HopeGestionV2/backend`), pas sur la documentation, et relevé des écarts avec les écrans mobiles mockés. Une proposition de périmètre v1 est soumise à validation, sans aucun écran modifié. Ajout des modèles et d'un `FinancesRepository` **en lecture seule** (paiements, dépenses, catégories, synthèse du mois), seule partie certaine à ce stade.
 - **Diagnostic backend** :
@@ -703,3 +703,12 @@ session/projet que le chantier est piloté.
   - Dates `DATE` : converties en heure locale avant d'extraire le jour, ce qui est correct pour un serveur en UTC comme en UTC+1 et un appareil au Bénin. Données de test à midi UTC pour ne pas dépendre du fuseau de la machine de test.
   - `FinancesRepository` n'est **pas encore initialisé dans `main.dart`** : aucun écran ne l'utilise ; il le sera avec les écrans.
 - **Problèmes rencontrés** : aucun. Accès base de données toujours indisponible : les colonnes `payments.schedule_id`, `description`, `created_by`, `owner_id` (absentes de `init.sql`, présentes dans les requêtes) sont supposées exister en production (à confirmer). `flutter analyze` sur les fichiers touchés : aucun problème. `flutter test` : **184/184 verts** (168 + 16). Pas de `dart format`. Pas de commit.
+
+### T-042 : Rectification du diagnostic T-041 — `POST /api/paiements` est utilisée par le web
+- **Date** : 2026-09-28
+- **Statut** : Terminée
+- **Type** : Documentation
+- **Description** : Le diagnostic T-041 affirmait que `POST /api/paiements` (`paiementRoutes.ts`) n'était appelée par aucun client (« code mort »). C'est faux : la page détail du bail du web (`frontend/src/pages/LocationDetails.tsx`, bouton « Payer » de l'échéancier) l'appelle via `apiCall(`${API_URL}/paiements`)` avec `schedule_id`, forme d'appel que la recherche de T-041 n'avait pas couverte. `/api/depenses`, elle, reste sans appelant.
+- **Fichiers touchés** : `docs/JOURNAL_PROJET.md` (statut de T-041 et présente entrée).
+- **Décisions & justifications** : la rectification a été établie et documentée côté backend (`HopeGestionV2/docs/JOURNAL_PROJET.md`, T-006). Conséquences : `/api/paiements` ne peut pas être supprimée sans basculer d'abord `LocationDetails.tsx` sur `PUT /api/finances/schedules/:id/pay` (voir T-007 côté V2) ; le reste du diagnostic T-041 (colonne `statut` seule mise à jour, absence de quittance, recommandation pour le mobile d'encaisser par échéance) reste valable, et le mobile n'utilise toujours pas cette route.
+- **Remplace / modifie** : T-041 (point « Trois routes d'enregistrement de paiement », route 1).
