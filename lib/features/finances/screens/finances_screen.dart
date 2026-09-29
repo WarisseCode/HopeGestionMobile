@@ -107,7 +107,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   void _onDepense() {
     Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const DepenseScreen()));
+        .push(MaterialPageRoute(builder: (_) => const DepenseScreen()))
+        .then((_) => _load());
   }
 
   void _openDetail(Mouvement mouvement) {

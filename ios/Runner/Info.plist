@@ -26,6 +26,16 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Requis par image_picker (justificatif de dépense, phase 4.5 étape 3/3) :
+	     NSCameraUsageDescription est obligatoire dès qu'ImageSource.camera est
+	     utilisé, sinon iOS termine l'app au lieu d'ouvrir l'appareil photo.
+	     NSPhotoLibraryUsageDescription ajoutée par prudence, comme le fait
+	     l'exemple officiel du plugin (image_picker_ios), même si le sélecteur
+	     de galerie moderne (PHPicker) ne l'exige pas strictement. -->
+	<key>NSCameraUsageDescription</key>
+	<string>HopeGestion utilise l'appareil photo pour joindre un justificatif à une dépense.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HopeGestion accède à vos photos pour joindre un justificatif à une dépense.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

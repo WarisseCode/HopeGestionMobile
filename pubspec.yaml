@@ -65,6 +65,11 @@ dev_dependencies:
   # flutter_secure_storage_platform_interface ci-dessus.
   url_launcher_platform_interface: ^2.3.2
 
+  # Double officiel d'image_picker pour les tests (DepenseScreen, voir
+  # test/features/finances/screens/depense_screen_test.dart) : même raison
+  # que flutter_secure_storage_platform_interface ci-dessus.
+  image_picker_platform_interface: ^2.11.1
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your

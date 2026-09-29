@@ -1,8 +1,12 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../models/depense.dart';
+import '../models/depense_validation.dart';
 import '../models/echeance.dart';
 import '../models/finance_parsing.dart';
 import '../models/finance_stats.dart';
@@ -24,10 +28,13 @@ import 'finances_results.dart';
 /// Aucune de ces routes n'est paginée : elles renvoient toute la période
 /// demandée, d'où l'intérêt de toujours passer une période.
 ///
-/// **Écriture** (étape 2/3, T-044) : `PUT /api/finances/schedules/:id/pay`
-/// (encaissement par échéance) uniquement — voir [payerEcheance]. Décision
-/// validée : pas de repli sur `POST /api/finances` pour les loyers (deux
-/// routes aux effets différents sur les échéances, voir journal T-041/T-042).
+/// **Écriture** :
+/// - `PUT /api/finances/schedules/:id/pay` (encaissement par échéance,
+///   étape 2/3, T-044) — voir [payerEcheance]. Décision validée : pas de
+///   repli sur `POST /api/finances` pour les loyers (deux routes aux effets
+///   différents sur les échéances, voir journal T-041/T-042).
+/// - `POST /api/expenses` (enregistrement d'une dépense, étape 3/3) — voir
+///   [creerDepense].
 class FinancesRepository extends ChangeNotifier {
   FinancesRepository({required ApiClient apiClient})
     // ignore: prefer_initializing_formals
@@ -292,6 +299,79 @@ class FinancesRepository extends ChangeNotifier {
       return PayerEcheanceFailure(e.message, e.type);
     } on FormatException catch (e) {
       return PayerEcheanceFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
+
+  /// `POST /api/expenses` (`expenseRoutes.ts`) — multipart (`FormData`),
+  /// champs exactement ceux attendus par `expenseCreateRules` : `amount`,
+  /// `date_expense`, `category`, `building_id`, `lot_id`, `owner_id`,
+  /// `description`, `supplier_name`, fichier `proof`. Champs vides (`null`)
+  /// omis plutôt qu'envoyés vides.
+  ///
+  /// [buildingId]/[lotId]/[ownerId] : le serveur dérive le propriétaire de
+  /// l'immeuble en priorité, puis du lot, puis d'`owner_id` (revérifié côté
+  /// serveur contre les propriétaires gérés), sinon 422 — voir le formulaire
+  /// (`DepenseScreen`), qui impose toujours l'un des trois avant l'envoi.
+  ///
+  /// [justificatif] : vérifié contre [validerTailleJustificatif] **avant**
+  /// tout appel réseau — le serveur (`uploadMiddleware.ts`) rejette bien un
+  /// fichier trop volumineux, mais via un 500 générique sans code dédié (la
+  /// route ne définit pas de gestionnaire d'erreur multer/`fileFilter`
+  /// spécifique, voir journal), donc pas de moyen fiable de distinguer ce
+  /// rejet d'une vraie panne serveur une fois la requête partie.
+  Future<CreerDepenseResult> creerDepense({
+    required String categorie,
+    required double montant,
+    required DateTime date,
+    String? intitule,
+    String? fournisseur,
+    int? buildingId,
+    int? lotId,
+    int? ownerId,
+    File? justificatif,
+  }) async {
+    if (justificatif != null) {
+      final octets = await justificatif.length();
+      final erreurTaille = validerTailleJustificatif(octets);
+      if (erreurTaille != null) {
+        return CreerDepenseFichierRefuse(erreurTaille);
+      }
+    }
+    try {
+      final proofFile = justificatif != null
+          ? await MultipartFile.fromFile(justificatif.path)
+          : null;
+      final formData = FormData.fromMap({
+        'amount': montant,
+        'date_expense': formatDateIso(date),
+        'category': categorie,
+        'building_id': ?buildingId,
+        'lot_id': ?lotId,
+        'owner_id': ?ownerId,
+        'description': ?intitule,
+        'supplier_name': ?fournisseur,
+        'proof': ?proofFile,
+      });
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/expenses',
+        method: 'POST',
+        data: formData,
+      );
+      final data = response.data;
+      if (data == null) {
+        throw const FormatException('Réponse vide de /expenses.');
+      }
+      return CreerDepenseSuccess(Depense.fromJson(data));
+    } on ApiException catch (e) {
+      if (e.type == ApiExceptionType.network || e.type == ApiExceptionType.timeout) {
+        return CreerDepenseNetworkError(e.message);
+      }
+      if (e.type == ApiExceptionType.validation || e.statusCode == 422) {
+        return CreerDepenseValidationFailed(e.message);
+      }
+      return CreerDepenseFailure(e.message, e.type);
+    } on FormatException catch (e) {
+      return CreerDepenseFailure(e.message, ApiExceptionType.unknown);
     }
   }
 }

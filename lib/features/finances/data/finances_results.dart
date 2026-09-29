@@ -142,3 +142,44 @@ class PayerEcheanceFailure extends PayerEcheanceResult {
   final String message;
   final ApiExceptionType type;
 }
+
+/// Résultats de `FinancesRepository.creerDepense` — un cas par réaction
+/// distincte attendue de `DepenseScreen` (`POST /api/expenses`,
+/// `expenseRoutes.ts`).
+sealed class CreerDepenseResult {
+  const CreerDepenseResult();
+}
+
+class CreerDepenseSuccess extends CreerDepenseResult {
+  const CreerDepenseSuccess(this.depense);
+  final Depense depense;
+}
+
+/// 400 (validation des champs) ou 422 (aucun rattachement immeuble/lot/
+/// propriétaire résolu) : [message] est celui du serveur, prêt à afficher
+/// dans le formulaire.
+class CreerDepenseValidationFailed extends CreerDepenseResult {
+  const CreerDepenseValidationFailed(this.message);
+  final String message;
+}
+
+/// Fichier trop volumineux — voir [validerTailleJustificatif]
+/// (`depense_validation.dart`) : contrôle fait avant tout appel réseau,
+/// jamais un rejet renvoyé par le serveur (voir sa documentation pour le
+/// pourquoi).
+class CreerDepenseFichierRefuse extends CreerDepenseResult {
+  const CreerDepenseFichierRefuse(this.message);
+  final String message;
+}
+
+/// Réseau ou délai dépassé : jamais de nouvel envoi automatique côté écran.
+class CreerDepenseNetworkError extends CreerDepenseResult {
+  const CreerDepenseNetworkError(this.message);
+  final String message;
+}
+
+class CreerDepenseFailure extends CreerDepenseResult {
+  const CreerDepenseFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}

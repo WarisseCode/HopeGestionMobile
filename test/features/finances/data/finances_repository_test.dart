@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
@@ -501,6 +502,221 @@ void main() {
 
       expect(result, isA<PayerEcheanceFailure>());
       expect((result as PayerEcheanceFailure).type, ApiExceptionType.timeout);
+    });
+  });
+
+  group('creerDepense (POST /expenses)', () {
+    late File tempFile;
+
+    setUpAll(() async {
+      tempFile = File(
+        '${Directory.systemTemp.path}/creer_depense_repository_test.jpg',
+      );
+      await tempFile.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+    });
+
+    tearDownAll(() async {
+      if (await tempFile.exists()) await tempFile.delete();
+    });
+
+    test('envoie exactement les champs attendus, dont proof en multipart', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse(_expenseJson(), 201);
+      });
+
+      await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        intitule: 'Réparation plomberie',
+        fournisseur: 'ETS Plomberie',
+        buildingId: 1,
+        ownerId: 3,
+        justificatif: tempFile,
+      );
+
+      expect(seen!.path, '/expenses');
+      expect(seen!.method, 'POST');
+      expect(seen!.data, isA<FormData>());
+      final formData = seen!.data as FormData;
+      String field(String key) =>
+          formData.fields.firstWhere((f) => f.key == key).value;
+      expect(field('amount'), '45000.0');
+      expect(field('date_expense'), '2026-09-10');
+      expect(field('category'), 'Travaux / Entretien');
+      expect(field('building_id'), '1');
+      expect(field('owner_id'), '3');
+      expect(field('description'), 'Réparation plomberie');
+      expect(field('supplier_name'), 'ETS Plomberie');
+      expect(formData.files, hasLength(1));
+      expect(formData.files.first.key, 'proof');
+    });
+
+    test('champs facultatifs vides (null) omis', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse(_expenseJson(), 201);
+      });
+
+      await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        ownerId: 3,
+      );
+
+      final formData = seen!.data as FormData;
+      final keys = formData.fields.map((f) => f.key).toSet();
+      expect(keys, {'amount', 'date_expense', 'category', 'owner_id'});
+      expect(formData.files, isEmpty);
+    });
+
+    test('succès : renvoie la dépense créée (RETURNING *)', () async {
+      final repo = _repo(
+        (options) async => jsonResponse(_expenseJson(id: 7), 201),
+      );
+
+      final result = await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        ownerId: 3,
+      );
+
+      expect(result, isA<CreerDepenseSuccess>());
+      expect((result as CreerDepenseSuccess).depense.id, 7);
+    });
+
+    test('400 (validation des champs) → CreerDepenseValidationFailed', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Montant invalide (> 0)'}, 400),
+      );
+
+      final result = await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        ownerId: 3,
+      );
+
+      expect(result, isA<CreerDepenseValidationFailed>());
+      expect(
+        (result as CreerDepenseValidationFailed).message,
+        'Montant invalide (> 0)',
+      );
+    });
+
+    test('422 (aucun rattachement résolu) → CreerDepenseValidationFailed', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'message': 'Sélectionnez un immeuble ou un propriétaire pour cette dépense.',
+        }, 422),
+      );
+
+      final result = await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+      );
+
+      expect(result, isA<CreerDepenseValidationFailed>());
+      expect(
+        (result as CreerDepenseValidationFailed).message,
+        contains('immeuble ou un propriétaire'),
+      );
+    });
+
+    test(
+      'justificatif trop volumineux → CreerDepenseFichierRefuse, sans requête réseau',
+      () async {
+        final fichierVolumineux = File(
+          '${Directory.systemTemp.path}/creer_depense_trop_gros.jpg',
+        );
+        await fichierVolumineux.writeAsBytes(
+          List.filled(11 * 1024 * 1024, 0),
+        );
+        addTearDown(() async {
+          if (await fichierVolumineux.exists()) {
+            await fichierVolumineux.delete();
+          }
+        });
+
+        var appels = 0;
+        final repo = _repo((options) async {
+          appels++;
+          return jsonResponse(_expenseJson(), 201);
+        });
+
+        final result = await repo.creerDepense(
+          categorie: 'Travaux / Entretien',
+          montant: 45000,
+          date: DateTime(2026, 9, 10),
+          ownerId: 3,
+          justificatif: fichierVolumineux,
+        );
+
+        expect(result, isA<CreerDepenseFichierRefuse>());
+        expect(
+          (result as CreerDepenseFichierRefuse).message,
+          contains('10 Mo'),
+        );
+        expect(appels, 0);
+      },
+    );
+
+    test('erreur réseau → CreerDepenseNetworkError', () async {
+      final repo = _repo(
+        (options) async => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      final result = await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        ownerId: 3,
+      );
+
+      expect(result, isA<CreerDepenseNetworkError>());
+    });
+
+    test('délai dépassé → CreerDepenseNetworkError', () async {
+      final repo = _repo(
+        (options) async => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.sendTimeout,
+        ),
+      );
+
+      final result = await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        ownerId: 3,
+      );
+
+      expect(result, isA<CreerDepenseNetworkError>());
+    });
+
+    test('erreur serveur générique (500) → CreerDepenseFailure', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Erreur serveur'}, 500),
+      );
+
+      final result = await repo.creerDepense(
+        categorie: 'Travaux / Entretien',
+        montant: 45000,
+        date: DateTime(2026, 9, 10),
+        ownerId: 3,
+      );
+
+      expect(result, isA<CreerDepenseFailure>());
+      expect((result as CreerDepenseFailure).type, ApiExceptionType.server);
     });
   });
 }
