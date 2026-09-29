@@ -18,6 +18,25 @@ class PaiementsListFailure extends PaiementsListResult {
   final ApiExceptionType type;
 }
 
+sealed class PaiementResult {
+  const PaiementResult();
+}
+
+class PaiementTrouve extends PaiementResult {
+  const PaiementTrouve(this.paiement);
+  final Paiement paiement;
+}
+
+class PaiementIntrouvable extends PaiementResult {
+  const PaiementIntrouvable();
+}
+
+class PaiementFailure extends PaiementResult {
+  const PaiementFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}
+
 sealed class DepensesListResult {
   const DepensesListResult();
 }

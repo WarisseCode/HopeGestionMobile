@@ -2,18 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../models/transaction.dart';
+import '../models/finance_format.dart';
+import '../models/mouvement.dart';
 
-/// Ligne représentant une opération financière dans la section Dernières Opérations
+/// Ligne d'un mouvement du mois : entrée (paiement, montant positif) ou
+/// sortie (dépense, montant négatif).
 class TransactionItem extends StatelessWidget {
-  const TransactionItem({super.key, required this.transaction, this.onTap});
+  const TransactionItem({super.key, required this.mouvement, this.onTap});
 
-  final FinanceTransaction transaction;
+  final Mouvement mouvement;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isIncome = transaction.isIncome;
+    final isIncome = mouvement.estEntree;
+    // Un paiement annulé ou en attente reste listé, mais ne compte pas dans
+    // l'encaissé du mois (`GET /finances/stats` : statut `valide` seulement).
+    final m = mouvement;
+    final statutNonValide = m is MouvementPaiement && !m.paiement.estValide
+        ? libelleStatutPaiement(m.paiement.statut)
+        : null;
+    final sousTitre = [
+      formatDateCourte(mouvement.date),
+      if (mouvement.sousTitre.isNotEmpty) mouvement.sousTitre,
+      ?statutNonValide,
+    ].join(' · ');
 
     return InkWell(
       onTap: onTap,
@@ -49,7 +62,7 @@ class TransactionItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    transaction.title,
+                    mouvement.titre,
                     style: AppTypography.body(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -59,7 +72,7 @@ class TransactionItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    transaction.subtitle,
+                    sousTitre,
                     style: AppTypography.bodySmall(
                       color: AppColors.mutedForeground,
                       fontSize: 12,
@@ -70,13 +83,19 @@ class TransactionItem extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(width: 8),
 
             // Montant à droite
             Text(
-              transaction.formattedAmount,
+              formatMontantSigne(mouvement.montantSigne),
               style: AppTypography.body(
                 fontWeight: FontWeight.w700,
                 fontSize: 14.5,
+                color: statutNonValide != null
+                    ? AppColors.mutedForeground
+                    : isIncome
+                    ? AppColors.positive
+                    : AppColors.foreground,
               ),
             ),
           ],

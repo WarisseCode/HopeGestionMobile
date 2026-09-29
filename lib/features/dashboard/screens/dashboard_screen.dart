@@ -20,7 +20,6 @@ import '../../notifications/screens/notifications_screen.dart';
 import '../../profil/screens/profil_screen.dart';
 import '../../finances/screens/transaction_detail_screen.dart';
 import '../../finances/screens/depense_screen.dart';
-import '../../finances/models/transaction.dart';
 import '../../documents/screens/nouvelle_quittance_screen.dart';
 import '../../documents/screens/nouveau_contrat_screen.dart';
 import '../../documents/screens/nouvel_etat_des_lieux_screen.dart';
@@ -281,18 +280,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     },
                     onRentTap: (rent) {
+                      // `rent.id` = identifiant réel du paiement
+                      // (`/dashboard/activity`, type `payment`) : la fiche
+                      // charge le paiement lui-même.
+                      final paiementId = int.tryParse(rent.id);
+                      if (paiementId == null) return;
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => TransactionDetailScreen(
-                            transaction: FinanceTransaction(
-                              id: 'tx-${rent.id}',
-                              title: rent.property,
-                              subtitle: rent.tenant,
-                              amount: rent.amountValue,
-                              isIncome: true,
-                              date: DateTime.now(),
-                              category: 'Loyer',
-                            ),
+                          builder: (_) => TransactionDetailScreen.paiement(
+                            paiementId: paiementId,
                           ),
                         ),
                       );

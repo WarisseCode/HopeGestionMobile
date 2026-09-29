@@ -56,5 +56,20 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- url_launcher (T-043/complément) : ouverture d'un fichier serveur
+             (quittance, justificatif) dans une application externe —
+             lecteur PDF ou navigateur — via `launchUrl`. Requis à partir
+             d'Android 11 (API 30), sinon la vérification/le lancement de
+             l'intent échoue silencieusement (voir package-visibility).
+             `https` pour la production, `http` en plus pour le backend
+             local de debug (`AppConfig._localApiBaseUrl`). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
     </queries>
 </manifest>

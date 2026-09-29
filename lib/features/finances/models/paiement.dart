@@ -29,6 +29,7 @@ class Paiement {
     this.locataireNom,
     this.locatairePrenoms,
     this.proprietaireNom,
+    this.quittanceUrl,
   });
 
   /// `id`, `amount` et `payment_date` indispensables → `FormatException` ;
@@ -59,6 +60,7 @@ class Paiement {
       locataireNom: json['locataire_nom'] as String?,
       locatairePrenoms: json['locataire_prenoms'] as String?,
       proprietaireNom: json['proprietaire_nom'] as String?,
+      quittanceUrl: json['quittance_url'] as String?,
     );
   }
 
@@ -91,6 +93,12 @@ class Paiement {
   final String? locataireNom;
   final String? locatairePrenoms;
   final String? proprietaireNom;
+
+  /// Chemin de la quittance PDF (`/uploads/receipts/...`), à passer par
+  /// `AppConfig.resolveFileUrl`. **Absent de `GET /api/finances`
+  /// aujourd'hui** (`SELECT_PAYMENTS_FIELDS` ne sélectionne pas
+  /// `p.quittance_url`) : lu s'il est renvoyé, `null` sinon.
+  final String? quittanceUrl;
 
   bool get estValide => statut == 'valide';
 

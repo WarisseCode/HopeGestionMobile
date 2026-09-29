@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system.dart';
-import '../models/transaction.dart';
+import '../models/finance_format.dart';
+import '../models/finance_stats.dart';
 
-/// Carte sombre présentant le solde disponible et la synthèse entrées/sorties
-/// Conforme à la maquette 05-finances.png
+/// Carte sombre de synthèse du mois (`GET /api/finances/stats`).
+///
+/// Libellés alignés sur les définitions serveur (voir [FinanceStats]) : le
+/// montant principal est le **solde du mois** (encaissé − dépenses du mois),
+/// pas un solde de trésorerie cumulé.
 class FinancesBalanceCard extends StatelessWidget {
-  const FinancesBalanceCard({super.key, required this.metrics});
+  const FinancesBalanceCard({super.key, required this.stats});
 
-  final FinanceMetrics metrics;
+  final FinanceStats stats;
+
+  static const _labelColor = Color(0xFF708C86);
+  static const _noteColor = Color(0xFF8BA8A2);
 
   @override
   Widget build(BuildContext context) {
@@ -29,78 +36,97 @@ class FinancesBalanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label uppercase
           Text(
-            'SOLDE DISPONIBLE',
+            'SOLDE DU MOIS',
             style: AppTypography.labelUppercase(
-              color: const Color(0xFF708C86),
+              color: _labelColor,
               fontSize: 10.5,
               letterSpacing: 0.8,
             ),
           ),
           const SizedBox(height: 10),
-
-          // Montant principal
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              formatMontantSigne(stats.soldeNet),
+              style: AppTypography.kpiValue(color: Colors.white, fontSize: 32),
+            ),
+          ),
+          const SizedBox(height: 4),
           Text(
-            metrics.availableBalance,
-            style: AppTypography.kpiValue(color: Colors.white, fontSize: 32),
+            'Encaissé moins dépenses du mois',
+            style: AppTypography.kpiNote(color: _noteColor, fontSize: 12),
           ),
           const SizedBox(height: 20),
-
-          // Entrées / Sorties
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Entrées
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      metrics.totalIncome,
-                      style: AppTypography.titleSection(
-                        color: const Color(0xFF00C49F),
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Entrées',
-                      style: AppTypography.kpiNote(
-                        color: const Color(0xFF8BA8A2),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                child: _Chiffre(
+                  valeur: formatMontant(stats.encaisse),
+                  libelle: 'Encaissé',
+                  couleur: const Color(0xFF00C49F),
                 ),
               ),
-
-              // Sorties
+              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      metrics.totalExpenses,
-                      style: AppTypography.titleSection(
-                        color: Colors.white,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Sorties',
-                      style: AppTypography.kpiNote(
-                        color: const Color(0xFF8BA8A2),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                child: _Chiffre(
+                  valeur: formatMontant(stats.depenses),
+                  libelle: 'Dépenses',
+                  couleur: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Chiffre(
+                  valeur: formatMontant(stats.resteAEncaisser),
+                  libelle: 'Reste à encaisser',
+                  couleur: const Color(0xFFF5B754),
                 ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Chiffre extends StatelessWidget {
+  const _Chiffre({
+    required this.valeur,
+    required this.libelle,
+    required this.couleur,
+  });
+
+  final String valeur;
+  final String libelle;
+  final Color couleur;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            valeur,
+            style: AppTypography.titleSection(color: couleur, fontSize: 16),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          libelle,
+          maxLines: 2,
+          style: AppTypography.kpiNote(
+            color: FinancesBalanceCard._noteColor,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }

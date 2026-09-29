@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -13,6 +14,7 @@ import 'package:hope_gestion_mobile/features/dashboard/widgets/quick_action_shee
 import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/biens_screen.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/nouveau_bien_screen.dart';
+import 'package:hope_gestion_mobile/features/finances/data/finances_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/locataires_screen.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/nouveau_locataire_screen.dart';
@@ -90,7 +92,8 @@ Future<ResponseBody> _shellResponder(RequestOptions options) async {
             'title': 'Paiement reçu',
             'description': 'Yacine Diop - loyer',
             'created_at': '2026-04-14T10:00:00.000Z',
-            'montant': 185000,
+            // NUMERIC renvoyé en chaîne par node-postgres, pas en nombre JSON.
+            'montant': '185000.00',
           },
         ],
       }, 200);
@@ -149,8 +152,60 @@ Future<ResponseBody> _shellResponder(RequestOptions options) async {
       }, 200);
     case '/biens/lots':
       return jsonResponse({'lots': <dynamic>[]}, 200);
+    case '/finances':
+      // ShellScreen embarque aussi FinancesScreen (onglet Finances), qui
+      // charge le mois courant dès son premier frame (phase 4.5).
+      return jsonResponse({
+        'payments': [
+          {
+            'id': 1,
+            'lease_id': 8,
+            'amount': '185000.00',
+            'payment_date': _moisCourantIso(15),
+            'payment_method': 'especes',
+            'reference': null,
+            'type': 'loyer',
+            'statut': 'valide',
+            'created_at': null,
+            'reference_bail': 'BAIL-008',
+            'locataire_nom': 'Diop',
+            'locataire_prenoms': 'Yacine',
+          },
+        ],
+      }, 200);
+    case '/expenses':
+      return ResponseBody.fromString(
+        jsonEncode([
+          {
+            'id': 4,
+            'category': 'Travaux / Entretien',
+            'amount': '45000.00',
+            'date_expense': _moisCourantIso(10),
+            'description': 'Réparation plomberie',
+            'building_name': 'Résidence Palmiers',
+          },
+        ]),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    case '/finances/stats':
+      return jsonResponse({
+        'encashed_month': 185000,
+        'expenses_month': 45000,
+        'net_balance': 140000,
+        'pending_total': 320000,
+      }, 200);
   }
   throw UnimplementedError(options.path);
+}
+
+/// Jour [jour] du mois courant, à midi UTC (même jour quel que soit le
+/// fuseau de la machine de test) : `FinancesScreen` affiche le mois courant.
+String _moisCourantIso(int jour) {
+  final now = DateTime.now();
+  return DateTime.utc(now.year, now.month, jour, 12).toIso8601String();
 }
 
 void main() {
@@ -206,6 +261,8 @@ void main() {
       // ShellScreen embarque aussi BiensScreen (onglet Biens, voir
       // IndexedStack) : accédée dès le premier frame, comme les autres.
       BiensRepository.initialize(BiensRepository(apiClient: apiClient));
+      // Idem pour FinancesScreen (onglet Finances).
+      FinancesRepository.initialize(FinancesRepository(apiClient: apiClient));
       await AuthRepository.instance.restoreSession();
     });
 
@@ -488,18 +545,17 @@ void main() {
     await buildApp(tester);
     await tapTab(tester, 3); // Onglet Finances
 
-    // Vérifier les éléments clés
-    expect(find.text('AVRIL 2026'), findsOneWidget);
+    // Vérifier les éléments clés (données de `_shellResponder`)
     expect(find.text('Finances'), findsWidgets);
-    expect(find.text('SOLDE DISPONIBLE'), findsOneWidget);
-    expect(find.text('1 560 000 F'), findsOneWidget);
-    expect(find.text('+2,45 M'), findsOneWidget);
-    expect(find.text('-890 K'), findsOneWidget);
+    expect(find.text('SOLDE DU MOIS'), findsOneWidget);
+    expect(find.text('+140 000 F'), findsOneWidget);
     expect(find.text('Encaisser'), findsOneWidget);
     expect(find.text('Dépense'), findsOneWidget);
-    expect(find.text('DERNIÈRES OPÉRATIONS'), findsOneWidget);
-    expect(find.text('Loyer reçu'), findsWidgets);
+    expect(find.text('MOUVEMENTS DU MOIS · 2'), findsOneWidget);
+    expect(find.text('Yacine Diop'), findsWidgets);
+    expect(find.text('+185 000 F'), findsOneWidget);
     expect(find.text('Réparation plomberie'), findsOneWidget);
+    expect(find.text('-45 000 F'), findsOneWidget);
   });
 
   // ─────────────────────────────────────────────────────────────

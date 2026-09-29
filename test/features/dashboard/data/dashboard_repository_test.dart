@@ -6,6 +6,7 @@ import 'package:hope_gestion_mobile/core/network/api_client.dart';
 import 'package:hope_gestion_mobile/core/network/api_exception.dart';
 import 'package:hope_gestion_mobile/core/network/token_storage.dart';
 import 'package:hope_gestion_mobile/features/dashboard/data/dashboard_repository.dart';
+import 'package:hope_gestion_mobile/features/dashboard/models/dashboard_data.dart';
 import 'package:hope_gestion_mobile/features/dashboard/data/dashboard_result.dart';
 
 import '../../../support/fake_http_adapter.dart';
@@ -54,7 +55,9 @@ Map<String, dynamic> _activityJson() => {
       'title': 'Paiement reçu',
       'description': 'Yacine Diop - loyer',
       'created_at': '2026-09-20T10:00:00.000Z',
-      'montant': 185000,
+      // NUMERIC renvoyé en chaîne par node-postgres, pas en nombre JSON —
+      // voir `_recentRentFromActivity` (`dashboard_data.dart`).
+      'montant': '185000.00',
     },
     {
       'id': 2,
@@ -69,7 +72,7 @@ Map<String, dynamic> _activityJson() => {
       'title': 'Paiement reçu',
       'description': 'M. Camara - caution',
       'created_at': '2026-09-18T08:00:00.000Z',
-      'montant': 320000,
+      'montant': '320000.00',
     },
   ],
 };
@@ -147,6 +150,47 @@ void main() {
     expect(data.recentRents[1].id, '3');
     expect(data.recentRents[1].amountValue, 320000);
   });
+
+  test(
+    'loyer récent : montant NUMERIC en chaîne accepté, absent/illisible → "—"',
+    () {
+      // `DashboardData.fromApi` directement (pas de round-trip HTTP) : plus
+      // simple pour isoler `_recentRentFromActivity`, qui n'est pas exportée.
+      final data = DashboardData.fromApi(
+        kpi: _kpiJson(),
+        chartMonthly: _chartMonthlyJson(),
+        chart7d: _chart7dJson(),
+        activity: {
+          'activities': [
+            {
+              'id': 1,
+              'type': 'payment',
+              'description': 'Chaîne (cas réel du serveur)',
+              'montant': '185000.00',
+            },
+            {
+              'id': 2,
+              'type': 'payment',
+              'description': 'Absent',
+            },
+            {
+              'id': 3,
+              'type': 'payment',
+              'description': 'Illisible',
+              'montant': 'abc',
+            },
+          ],
+        },
+      );
+
+      expect(data.recentRents[0].amount, '185 000 F');
+      expect(data.recentRents[0].amountValue, 185000);
+      expect(data.recentRents[1].amount, '—');
+      expect(data.recentRents[1].amountValue, 0);
+      expect(data.recentRents[2].amount, '—');
+      expect(data.recentRents[2].amountValue, 0);
+    },
+  );
 
   test('load() : erreur réseau sur un appel → DashboardLoadFailure(network)', () async {
     final repo = _repo((options) async {

@@ -103,6 +103,39 @@ class FinancesRepository extends ChangeNotifier {
     }
   }
 
+  /// Un paiement par identifiant — pour le tableau de bord, qui ne connaît
+  /// que l'`id` des paiements récents (`/dashboard/activity`).
+  ///
+  /// Le backend n'a **pas** de route `GET /api/finances/:id` : on cherche
+  /// d'abord dans les paiements déjà chargés, sinon on relit
+  /// `GET /api/finances` **sans période** (toute la liste, non paginée) et
+  /// on y cherche l'identifiant, sans remplacer [paiements] (la liste du
+  /// mois affichée par l'écran Finances).
+  Future<PaiementResult> findPaiement(int id) async {
+    for (final p in _paiements) {
+      if (p.id == id) return PaiementTrouve(p);
+    }
+    try {
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/finances',
+      );
+      final raw = response.data?['payments'];
+      if (raw is! List) {
+        throw const FormatException(
+          'Réponse de /finances sans champ "payments" exploitable.',
+        );
+      }
+      for (final json in raw.whereType<Map<String, dynamic>>()) {
+        if (json['id'] == id) return PaiementTrouve(Paiement.fromJson(json));
+      }
+      return const PaiementIntrouvable();
+    } on ApiException catch (e) {
+      return PaiementFailure(e.message, e.type);
+    } on FormatException catch (e) {
+      return PaiementFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
+
   /// `GET /api/expenses` → **tableau nu** (pas d'objet enveloppe,
   /// contrairement à `/finances`), trié par date décroissante côté serveur.
   Future<DepensesListResult> listDepenses({

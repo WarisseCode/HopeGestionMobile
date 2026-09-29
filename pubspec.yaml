@@ -44,6 +44,7 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   shared_preferences: ^2.5.5
   image_picker: ^1.2.3
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -58,6 +59,11 @@ dev_dependencies:
   # (InMemorySharedPreferencesAsync, voir test/features/onboarding/) : même
   # raison que flutter_secure_storage_platform_interface ci-dessus.
   shared_preferences_platform_interface: ^2.4.2
+
+  # Double officiel de url_launcher pour les tests (FakeUrlLauncher, voir
+  # test/support/fake_url_launcher.dart) : même raison que
+  # flutter_secure_storage_platform_interface ci-dessus.
+  url_launcher_platform_interface: ^2.3.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

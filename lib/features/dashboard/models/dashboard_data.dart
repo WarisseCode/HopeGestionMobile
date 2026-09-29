@@ -197,9 +197,19 @@ List<_ChartPoint> _chartPointsFrom(Map<String, dynamic> chartResponse) {
 /// entrées sont des paiements déjà enregistrés en base.
 RecentRentPayment _recentRentFromActivity(Map<String, dynamic> activity) {
   final description = activity['description'] as String?;
-  final montant = activity['montant'];
-  final amountValue = montant is num ? montant.round() : 0;
-  final amount = montant is num ? _formatMontant(montant.toDouble()) : '—';
+  // `p.montant` (NUMERIC) : node-postgres le sérialise en chaîne
+  // (`"185000.00"`), pas en nombre JSON — voir `finance_parsing.dart` pour le
+  // même constat côté Finances. `_asDouble` ne distingue pas "manquant" de
+  // "0" (renvoie 0 dans les deux cas) : reparse ici pour garder le "—"
+  // honnête quand `montant` est réellement absent ou illisible.
+  final montantRaw = activity['montant'];
+  final montant = switch (montantRaw) {
+    final num n => n.toDouble(),
+    final String s => double.tryParse(s),
+    _ => null,
+  };
+  final amountValue = montant?.round() ?? 0;
+  final amount = montant != null ? _formatMontant(montant) : '—';
   final createdAt = DateTime.tryParse(activity['created_at'] as String? ?? '');
 
   return RecentRentPayment(
