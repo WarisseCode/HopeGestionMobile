@@ -283,4 +283,224 @@ void main() {
       expect(stats.soldeNet, 0);
     });
   });
+
+  group('listEcheances (GET /locations/:id/echeancier)', () {
+    test('succès : parse les lignes brutes de payment_schedules', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'echeancier': [
+            {
+              'id': 12,
+              'lease_id': 8,
+              'total_amount': '185000.00',
+              'amount_paid': '0.00',
+              'due_date': '2026-09-05T12:00:00.000Z',
+              'status': 'pending',
+              'statut': 'en_attente',
+              'numero_echeance': null,
+              'description': 'Loyer 9/2026',
+            },
+          ],
+        }, 200);
+      });
+
+      final result = await repo.listEcheances(8);
+
+      expect(seen!.path, '/locations/8/echeancier');
+      final items = (result as EcheancesListSuccess).items;
+      expect(items, hasLength(1));
+      expect(items.single.id, 12);
+      expect(items.single.total, 185000);
+    });
+
+    test('réponse sans champ "echeancier" → échec', () async {
+      final repo = _repo((options) async => jsonResponse({}, 200));
+
+      final result = await repo.listEcheances(8);
+
+      expect(result, isA<EcheancesListFailure>());
+    });
+
+    test('erreur réseau → EcheancesListFailure', () async {
+      final repo = _repo(
+        (options) async => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      final result = await repo.listEcheances(8) as EcheancesListFailure;
+
+      expect(result.type, ApiExceptionType.network);
+    });
+  });
+
+  group('payerEcheance (PUT /finances/schedules/:id/pay)', () {
+    test('envoie exactement montant, mode_paiement, date_paiement, reference', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'message': 'Acompte enregistré',
+          'soldee': false,
+          'reste_du': 135000,
+          'receiptUrl': null,
+        }, 200);
+      });
+
+      await repo.payerEcheance(
+        echeanceId: 12,
+        montant: 50000,
+        modePaiement: 'mobile_money',
+        datePaiement: '2026-09-15',
+        reference: 'MM-123',
+      );
+
+      expect(seen!.path, '/finances/schedules/12/pay');
+      expect(seen!.method, 'PUT');
+      expect(seen!.data, {
+        'montant': 50000.0,
+        'mode_paiement': 'mobile_money',
+        'date_paiement': '2026-09-15',
+        'reference': 'MM-123',
+      });
+    });
+
+    test('montant et référence omis quand null (le serveur encaisse le reste dû)', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'message': 'Échéance marquée comme payée',
+          'soldee': true,
+          'reste_du': 0,
+          'receiptUrl': '/uploads/receipts/q.pdf',
+        }, 200);
+      });
+
+      await repo.payerEcheance(
+        echeanceId: 12,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      );
+
+      expect(seen!.data, {
+        'mode_paiement': 'especes',
+        'date_paiement': '2026-09-15',
+      });
+    });
+
+    test('succès au solde : soldee, reste_du et receiptUrl transmis', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'message': 'Échéance marquée comme payée',
+          'soldee': true,
+          'reste_du': 0,
+          'receiptUrl': '/uploads/receipts/q.pdf',
+        }, 200),
+      );
+
+      final result = await repo.payerEcheance(
+        echeanceId: 12,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      ) as PayerEcheanceSuccess;
+
+      expect(result.message, 'Échéance marquée comme payée');
+      expect(result.soldee, isTrue);
+      expect(result.resteDu, 0);
+      expect(result.receiptUrl, '/uploads/receipts/q.pdf');
+    });
+
+    test('succès en acompte : receiptUrl absent', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'message': 'Acompte enregistré',
+          'soldee': false,
+          'reste_du': 135000,
+        }, 200),
+      );
+
+      final result = await repo.payerEcheance(
+        echeanceId: 12,
+        montant: 50000,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      ) as PayerEcheanceSuccess;
+
+      expect(result.soldee, isFalse);
+      expect(result.resteDu, 135000);
+      expect(result.receiptUrl, isNull);
+    });
+
+    test('400 (montant au-delà du reste dû) → PayerEcheanceValidationFailed', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Montant invalide'}, 400),
+      );
+
+      final result = await repo.payerEcheance(
+        echeanceId: 12,
+        montant: 999999,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      );
+
+      expect(result, isA<PayerEcheanceValidationFailed>());
+      expect((result as PayerEcheanceValidationFailed).message, 'Montant invalide');
+    });
+
+    test('409 (déjà soldée) → PayerEcheanceDejaSoldee', () async {
+      final repo = _repo(
+        (options) async =>
+            jsonResponse({'message': 'Échéance déjà soldée'}, 409),
+      );
+
+      final result = await repo.payerEcheance(
+        echeanceId: 12,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      );
+
+      expect(result, isA<PayerEcheanceDejaSoldee>());
+      expect((result as PayerEcheanceDejaSoldee).message, 'Échéance déjà soldée');
+    });
+
+    test('erreur réseau → PayerEcheanceFailure(network)', () async {
+      final repo = _repo(
+        (options) async => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      final result = await repo.payerEcheance(
+        echeanceId: 12,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      );
+
+      expect(result, isA<PayerEcheanceFailure>());
+      expect((result as PayerEcheanceFailure).type, ApiExceptionType.network);
+    });
+
+    test('délai dépassé → PayerEcheanceFailure(timeout)', () async {
+      final repo = _repo(
+        (options) async => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.receiveTimeout,
+        ),
+      );
+
+      final result = await repo.payerEcheance(
+        echeanceId: 12,
+        modePaiement: 'especes',
+        datePaiement: '2026-09-15',
+      );
+
+      expect(result, isA<PayerEcheanceFailure>());
+      expect((result as PayerEcheanceFailure).type, ApiExceptionType.timeout);
+    });
+  });
 }

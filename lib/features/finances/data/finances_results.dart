@@ -1,5 +1,6 @@
 import '../../../core/network/api_exception.dart';
 import '../models/depense.dart';
+import '../models/echeance.dart';
 import '../models/finance_stats.dart';
 import '../models/paiement.dart';
 
@@ -78,6 +79,66 @@ class FinanceStatsSuccess extends FinanceStatsResult {
 
 class FinanceStatsFailure extends FinanceStatsResult {
   const FinanceStatsFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}
+
+sealed class EcheancesListResult {
+  const EcheancesListResult();
+}
+
+class EcheancesListSuccess extends EcheancesListResult {
+  const EcheancesListSuccess(this.items);
+  final List<Echeance> items;
+}
+
+class EcheancesListFailure extends EcheancesListResult {
+  const EcheancesListFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}
+
+/// Résultats de `FinancesRepository.payerEcheance` — un cas par réaction
+/// distincte attendue de l'écran (`PUT /api/finances/schedules/:id/pay`,
+/// `FinanceService.paySchedule`, HopeGestionV2 T-006/T-007).
+sealed class PayerEcheanceResult {
+  const PayerEcheanceResult();
+}
+
+class PayerEcheanceSuccess extends PayerEcheanceResult {
+  const PayerEcheanceSuccess({
+    required this.message,
+    required this.soldee,
+    required this.resteDu,
+    this.receiptUrl,
+  });
+
+  /// Message du serveur : « Échéance marquée comme payée » ou « Acompte
+  /// enregistré » selon [soldee].
+  final String message;
+  final bool soldee;
+  final double resteDu;
+
+  /// Non `null` uniquement quand [soldee] est vrai (quittance générée au
+  /// solde seulement, voir T-006).
+  final String? receiptUrl;
+}
+
+/// 400 : montant invalide (nul, négatif, ou supérieur au reste dû), date
+/// invalide... [message] est celui du serveur, prêt à afficher tel quel.
+class PayerEcheanceValidationFailed extends PayerEcheanceResult {
+  const PayerEcheanceValidationFailed(this.message);
+  final String message;
+}
+
+/// 409 : l'échéance est déjà soldée (double envoi, mise à jour concurrente).
+class PayerEcheanceDejaSoldee extends PayerEcheanceResult {
+  const PayerEcheanceDejaSoldee(this.message);
+  final String message;
+}
+
+class PayerEcheanceFailure extends PayerEcheanceResult {
+  const PayerEcheanceFailure(this.message, this.type);
   final String message;
   final ApiExceptionType type;
 }

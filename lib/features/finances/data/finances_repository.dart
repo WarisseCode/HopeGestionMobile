@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../models/depense.dart';
+import '../models/echeance.dart';
 import '../models/finance_parsing.dart';
 import '../models/finance_stats.dart';
 import '../models/paiement.dart';
@@ -11,22 +12,22 @@ import 'finances_results.dart';
 /// Source de vérité des données Finances réelles (phase 4.5), même pattern
 /// que `BiensRepository` (constructeur public + `instance`/`initialize`).
 ///
-/// **Lecture seule pour l'instant** : seules les routes de lecture sont
-/// certaines après le diagnostic (journal T-041). Les écritures
-/// (encaissement, dépense) attendent la validation du périmètre : il existe
-/// trois routes d'enregistrement de paiement aux effets différents sur les
-/// échéances, voir journal.
-///
-/// Routes utilisées — celles de la page Finances du web, pas les doublons
-/// `/api/paiements` et `/api/depenses` (montés mais appelés par aucun
-/// client) :
+/// Routes de lecture utilisées — celles de la page Finances du web, pas les
+/// doublons `/api/paiements` et `/api/depenses` (montés mais appelés par
+/// aucun client) :
 /// - `GET /api/finances` (paiements, filtres de période) ;
 /// - `GET /api/expenses` (dépenses, filtres de période et d'immeuble) ;
 /// - `GET /api/expenses/categories` ;
-/// - `GET /api/finances/stats` (synthèse du mois).
+/// - `GET /api/finances/stats` (synthèse du mois) ;
+/// - `GET /api/locations/:id/echeancier` (échéances d'un bail).
 ///
 /// Aucune de ces routes n'est paginée : elles renvoient toute la période
 /// demandée, d'où l'intérêt de toujours passer une période.
+///
+/// **Écriture** (étape 2/3, T-044) : `PUT /api/finances/schedules/:id/pay`
+/// (encaissement par échéance) uniquement — voir [payerEcheance]. Décision
+/// validée : pas de repli sur `POST /api/finances` pour les loyers (deux
+/// routes aux effets différents sur les échéances, voir journal T-041/T-042).
 class FinancesRepository extends ChangeNotifier {
   FinancesRepository({required ApiClient apiClient})
     // ignore: prefer_initializing_formals
@@ -213,6 +214,84 @@ class FinancesRepository extends ChangeNotifier {
       return FinanceStatsFailure(e.message, e.type);
     } on FormatException catch (e) {
       return FinanceStatsFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
+
+  /// `GET /api/locations/:id/echeancier` → `{ echeancier: [...] }` (colonnes
+  /// brutes de `payment_schedules`, voir [Echeance]). Non mis en cache dans
+  /// le dépôt (contrairement à [paiements]/[depenses]) : appelé pour un bail
+  /// précis, transitoire à l'écran d'encaissement.
+  Future<EcheancesListResult> listEcheances(int leaseId) async {
+    try {
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/locations/$leaseId/echeancier',
+      );
+      final raw = response.data?['echeancier'];
+      if (raw is! List) {
+        throw const FormatException(
+          'Réponse de /locations/:id/echeancier sans champ "echeancier" exploitable.',
+        );
+      }
+      final items = raw
+          .whereType<Map<String, dynamic>>()
+          .map(Echeance.fromJson)
+          .toList();
+      return EcheancesListSuccess(items);
+    } on ApiException catch (e) {
+      return EcheancesListFailure(e.message, e.type);
+    } on FormatException catch (e) {
+      return EcheancesListFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
+
+  /// `PUT /api/finances/schedules/:id/pay` — encaisse tout ou partie d'une
+  /// échéance. Envoie exactement les noms attendus par `payScheduleRules`
+  /// (`HopeGestionV2/backend/routes/financeRoutes.ts`) : `montant`,
+  /// `mode_paiement`, `date_paiement` (AAAA-MM-JJ), `reference`.
+  ///
+  /// [montant] omis (`null`) → le serveur encaisse le reste dû ; fourni, il
+  /// doit être > 0 et ≤ reste dû sous peine de 400 (non revérifié ici, déjà
+  /// imposé par le formulaire). 409 si l'échéance est déjà soldée (verrou en
+  /// base côté serveur, double envoi ou mise à jour concurrente).
+  Future<PayerEcheanceResult> payerEcheance({
+    required int echeanceId,
+    double? montant,
+    required String modePaiement,
+    required String datePaiement,
+    String? reference,
+  }) async {
+    try {
+      final body = {
+        'montant': ?montant,
+        'mode_paiement': modePaiement,
+        'date_paiement': datePaiement,
+        'reference': ?reference,
+      };
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/finances/schedules/$echeanceId/pay',
+        method: 'PUT',
+        data: body,
+      );
+      final data = response.data;
+      if (data == null) {
+        throw const FormatException(
+          'Réponse vide de /finances/schedules/:id/pay.',
+        );
+      }
+      return PayerEcheanceSuccess(
+        message: (data['message'] as String?) ?? 'Paiement enregistré.',
+        soldee: data['soldee'] == true,
+        resteDu: asDoubleOrNull(data['reste_du']) ?? 0,
+        receiptUrl: data['receiptUrl'] as String?,
+      );
+    } on ApiException catch (e) {
+      if (e.statusCode == 409) return PayerEcheanceDejaSoldee(e.message);
+      if (e.type == ApiExceptionType.validation) {
+        return PayerEcheanceValidationFailed(e.message);
+      }
+      return PayerEcheanceFailure(e.message, e.type);
+    } on FormatException catch (e) {
+      return PayerEcheanceFailure(e.message, ApiExceptionType.unknown);
     }
   }
 }

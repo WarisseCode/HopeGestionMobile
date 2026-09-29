@@ -101,7 +101,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   void _onEncaisser() {
     Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const EncaisserScreen()));
+        .push(MaterialPageRoute(builder: (_) => const EncaisserScreen()))
+        .then((_) => _load());
   }
 
   void _onDepense() {

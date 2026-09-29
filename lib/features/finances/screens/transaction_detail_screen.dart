@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
 import '../data/finances_repository.dart';
 import '../data/finances_results.dart';
 import '../models/depense.dart';
+import '../models/finance_file_opener.dart';
 import '../models/finance_format.dart';
 import '../models/mouvement.dart';
 import '../models/paiement.dart';
@@ -403,29 +402,6 @@ class _LienFichier extends StatelessWidget {
   final String libelle;
   final String url;
 
-  Future<void> _ouvrir(BuildContext context) async {
-    var ouvert = false;
-    try {
-      ouvert = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {
-      ouvert = false;
-    }
-    if (ouvert || !context.mounted) return;
-
-    // Solution de repli : copie du lien, avec un message clair sur la raison.
-    await Clipboard.setData(ClipboardData(text: url));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Impossible d'ouvrir ce fichier : le lien a été copié "
-          'dans le presse-papiers',
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppCard(
@@ -453,7 +429,7 @@ class _LienFichier extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () => _ouvrir(context),
+            onPressed: () => ouvrirFichierOuCopier(context, url),
             child: const Text('Ouvrir'),
           ),
         ],

@@ -397,13 +397,18 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => EncaisserScreen(
-                          initialTenant: locataire.displayName,
-                        ),
-                      ),
-                    );
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EncaisserScreen(locataireId: locataire.id),
+                          ),
+                        )
+                        // Recharge dans tous les cas (encaissement réussi ou
+                        // simple retour) : lecture idempotente, jamais coûteuse
+                        // à tort — même politique que BiensScreen après une
+                        // fiche immeuble.
+                        .then((_) => _load());
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
