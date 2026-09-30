@@ -136,6 +136,7 @@ class QuittanceManuelle {
   const QuittanceManuelle({
     required this.id,
     this.numero,
+    this.leaseId,
     this.locataireNom,
     this.proprietaireNom,
     this.bien,
@@ -147,6 +148,10 @@ class QuittanceManuelle {
 
   final int id;
   final String? numero;
+
+  /// Bail d'origine (`lease_id`) — sert à détecter un doublon (même bail,
+  /// même période) avant l'envoi de `POST /quittances`.
+  final int? leaseId;
   final String? locataireNom;
   final String? proprietaireNom;
   final String? bien;
@@ -161,6 +166,7 @@ class QuittanceManuelle {
     return QuittanceManuelle(
       id: id,
       numero: _texte(json['numero']),
+      leaseId: asIntOrNull(json['lease_id']),
       locataireNom: _texte(json['locataire_name']),
       proprietaireNom: _texte(json['proprietaire_name']),
       bien: _texte(json['bien']),

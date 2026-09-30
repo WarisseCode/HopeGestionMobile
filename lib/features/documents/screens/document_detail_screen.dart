@@ -226,9 +226,8 @@ class _FicheQuittance extends StatelessWidget {
         _Details(lignes: lignes),
         const SizedBox(height: 16),
         const AppInfoBanner(
-          text:
-              'Quittance saisie manuellement : son PDF est généré par '
-              "l'application web, aucun fichier n'est disponible ici.",
+          text: 'Le PDF de cette quittance est disponible sur '
+              "l'application web.",
         ),
       ],
     );

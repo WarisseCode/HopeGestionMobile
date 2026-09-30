@@ -160,6 +160,7 @@ void main() {
       final q = QuittanceManuelle.tryFromJson(_quittanceJson())!;
 
       expect(q.id, 4);
+      expect(q.leaseId, 42);
       expect(q.numero, 'QUI-MAN-2026-0004');
       expect(q.locataireNom, 'Yacine Diop');
       expect(q.proprietaireNom, 'Mamadou Camara');
@@ -172,6 +173,7 @@ void main() {
     test('champs manquants tolérés ; id absent → null', () {
       final q = QuittanceManuelle.tryFromJson({'id': 1, 'montant': 'n/a'})!;
       expect(q.numero, isNull);
+      expect(q.leaseId, isNull);
       expect(q.montant, isNull);
       expect(q.dateEmission, isNull);
       expect(QuittanceManuelle.tryFromJson({'numero': 'X'}), isNull);

@@ -153,6 +153,7 @@ void main() {
 
       expect(seen!.path, '/quittances');
       expect(result.items.single.numero, 'QUI-MAN-2026-0004');
+      expect(result.items.single.leaseId, 42);
       expect(result.items.single.montant, 185000);
       expect(repo.quittancesManuelles, hasLength(1));
     });
@@ -180,6 +181,176 @@ void main() {
           await repo.listQuittancesManuelles() as QuittancesManuellesFailure;
 
       expect(result.type, ApiExceptionType.network);
+    });
+  });
+
+  group('creerQuittanceManuelle (POST /quittances)', () {
+    ResponseBody objectResponse(Map<String, dynamic> body, [int statusCode = 201]) =>
+        ResponseBody.fromString(
+          jsonEncode(body),
+          statusCode,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+
+    Map<String, dynamic> quittanceCreeeJson() => {
+      'id': 9,
+      'owner_id': 3,
+      'lease_id': 42,
+      'numero': 'QUI-MAN-2026-0009',
+      'locataire_name': 'Yacine Diop',
+      'proprietaire_name': 'Mamadou Camara',
+      'proprietaire_adresse': 'Cotonou',
+      'proprietaire_tel': '+229 01 02 03 04',
+      'bien': 'Résidence Palmiers · A12',
+      'periode': 'Septembre 2026',
+      'montant': '185000.00',
+      'date_emission': '2026-09-10',
+      'created_by': 1,
+      'created_at': '2026-09-10T15:30:00.000Z',
+    };
+
+    test('champs envoyés exactement, champs facultatifs vides omis', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return objectResponse(quittanceCreeeJson());
+      });
+
+      final result =
+          await repo.creerQuittanceManuelle(
+                leaseId: 42,
+                montant: 185000,
+                periode: 'Septembre 2026',
+                locataire: '',
+                bien: '',
+                dateEmission: '',
+              )
+              as CreerQuittanceManuelleSuccess;
+
+      expect(seen!.path, '/quittances');
+      expect(seen!.method, 'POST');
+      expect(seen!.data, {
+        'lease_id': 42,
+        'montant': 185000,
+        'periode': 'Septembre 2026',
+      });
+      expect(result.quittance.numero, 'QUI-MAN-2026-0009');
+      expect(result.quittance.leaseId, 42);
+      expect(repo.quittancesManuelles, hasLength(1));
+    });
+
+    test('champs facultatifs renseignés : tous envoyés', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return objectResponse(quittanceCreeeJson());
+      });
+
+      await repo.creerQuittanceManuelle(
+        leaseId: 42,
+        montant: 185000,
+        periode: 'Septembre 2026',
+        locataire: 'Yacine Diop',
+        bien: 'Résidence Palmiers · A12',
+        dateEmission: '2026-09-10',
+      );
+
+      expect(seen!.data, {
+        'lease_id': 42,
+        'montant': 185000,
+        'periode': 'Septembre 2026',
+        'locataire': 'Yacine Diop',
+        'bien': 'Résidence Palmiers · A12',
+        'date_emission': '2026-09-10',
+      });
+    });
+
+    test('400 (validation) → CreerQuittanceManuelleValidationFailed', () async {
+      final repo = _repo(
+        (options) async =>
+            jsonResponse({'message': 'Montant invalide (> 0)'}, 400),
+      );
+
+      final result =
+          await repo.creerQuittanceManuelle(
+                leaseId: 42,
+                montant: 0,
+                periode: 'Septembre 2026',
+              )
+              as CreerQuittanceManuelleValidationFailed;
+
+      expect(result.message, 'Montant invalide (> 0)');
+    });
+
+    test('404 (bail introuvable) → CreerQuittanceManuelleBailRefuse', () async {
+      final repo = _repo(
+        (options) async =>
+            jsonResponse({'message': 'Bail introuvable ou accès refusé'}, 404),
+      );
+
+      final result =
+          await repo.creerQuittanceManuelle(
+                leaseId: 999,
+                montant: 185000,
+                periode: 'Septembre 2026',
+              )
+              as CreerQuittanceManuelleBailRefuse;
+
+      expect(result.message, 'Bail introuvable ou accès refusé');
+    });
+
+    test('403 (aucun propriétaire géré) → CreerQuittanceManuelleBailRefuse', () async {
+      final repo = _repo(
+        (options) async => jsonResponse(
+          {'message': 'Aucun propriétaire associé à ce compte.'},
+          403,
+        ),
+      );
+
+      final result =
+          await repo.creerQuittanceManuelle(
+                leaseId: 42,
+                montant: 185000,
+                periode: 'Septembre 2026',
+              )
+              as CreerQuittanceManuelleBailRefuse;
+
+      expect(result.message, 'Aucun propriétaire associé à ce compte.');
+    });
+
+    test('erreur réseau → CreerQuittanceManuelleNetworkError', () async {
+      final repo = _repo(
+        (options) async => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      final result = await repo.creerQuittanceManuelle(
+        leaseId: 42,
+        montant: 185000,
+        periode: 'Septembre 2026',
+      );
+
+      expect(result, isA<CreerQuittanceManuelleNetworkError>());
+    });
+
+    test('500 → CreerQuittanceManuelleFailure(server)', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Erreur serveur'}, 500),
+      );
+
+      final result =
+          await repo.creerQuittanceManuelle(
+                leaseId: 42,
+                montant: 185000,
+                periode: 'Septembre 2026',
+              )
+              as CreerQuittanceManuelleFailure;
+
+      expect(result.type, ApiExceptionType.server);
     });
   });
 }

@@ -94,4 +94,63 @@ class DocumentsRepository extends ChangeNotifier {
       return QuittancesManuellesFailure(e.message, ApiExceptionType.unknown);
     }
   }
+
+  /// `POST /api/quittances` (`quittanceRoutes.ts`) — permission
+  /// `finance:write`. Le serveur dérive `owner_id`, `proprietaire_name`,
+  /// `proprietaire_adresse` et `proprietaire_tel` du bail (vérifié
+  /// appartenir à l'un des propriétaires gérés) : ne les envoie jamais.
+  /// Champs facultatifs vides omis plutôt qu'envoyés vides. Aucun fichier
+  /// serveur n'est créé (le PDF reste une fonctionnalité web, voir
+  /// `ElementDocument`/`DocumentDetailScreen`).
+  Future<CreerQuittanceManuelleResult> creerQuittanceManuelle({
+    required int leaseId,
+    required double montant,
+    required String periode,
+    String? locataire,
+    String? bien,
+    String? dateEmission,
+  }) async {
+    try {
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/quittances',
+        method: 'POST',
+        data: {
+          'lease_id': leaseId,
+          'montant': montant,
+          'periode': periode,
+          if (locataire != null && locataire.isNotEmpty)
+            'locataire': locataire,
+          if (bien != null && bien.isNotEmpty) 'bien': bien,
+          if (dateEmission != null && dateEmission.isNotEmpty)
+            'date_emission': dateEmission,
+        },
+      );
+      final data = response.data;
+      final quittance = data == null
+          ? null
+          : QuittanceManuelle.tryFromJson(data);
+      if (quittance == null) {
+        throw const FormatException(
+          'Réponse de POST /quittances sans quittance exploitable.',
+        );
+      }
+      _quittances = [quittance, ..._quittances];
+      notifyListeners();
+      return CreerQuittanceManuelleSuccess(quittance);
+    } on ApiException catch (e) {
+      if (e.statusCode == 403 || e.statusCode == 404) {
+        return CreerQuittanceManuelleBailRefuse(e.message);
+      }
+      if (e.type == ApiExceptionType.validation) {
+        return CreerQuittanceManuelleValidationFailed(e.message);
+      }
+      if (e.type == ApiExceptionType.network ||
+          e.type == ApiExceptionType.timeout) {
+        return CreerQuittanceManuelleNetworkError(e.message);
+      }
+      return CreerQuittanceManuelleFailure(e.message, e.type);
+    } on FormatException catch (e) {
+      return CreerQuittanceManuelleFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
 }

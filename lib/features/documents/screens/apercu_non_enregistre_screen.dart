@@ -5,10 +5,11 @@ import '../../../core/design_system.dart';
 import '../models/document_item.dart';
 
 /// Aperçu d'un document saisi dans un écran de création **non branché au
-/// backend** (contrat, état des lieux, quittance — phase 4.6, étape A :
-/// lecture seule). Reprend la feuille A4 de l'ancien `DocumentDetailScreen`,
-/// sans ses faux boutons de partage/téléchargement/impression : rien n'a
-/// été enregistré, il n'existe aucun fichier à partager.
+/// backend** (contrat, état des lieux — la quittance manuelle est réelle
+/// depuis la phase 4.6 étape B, voir `NouvelleQuittanceScreen`). Reprend la
+/// feuille A4 de l'ancien `DocumentDetailScreen`, sans ses faux boutons de
+/// partage/téléchargement/impression : rien n'a été enregistré, il n'existe
+/// aucun fichier à partager.
 class ApercuNonEnregistreScreen extends StatelessWidget {
   final DocumentItem document;
 

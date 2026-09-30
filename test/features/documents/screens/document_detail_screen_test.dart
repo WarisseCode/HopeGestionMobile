@@ -97,7 +97,7 @@ void main() {
         expect(find.text('185 000 F'), findsOneWidget);
         expect(find.text('10/09/2026'), findsOneWidget);
         expect(find.text('Ouvrir'), findsNothing);
-        expect(find.textContaining('généré par'), findsOneWidget);
+        expect(find.textContaining('disponible sur'), findsOneWidget);
       },
     );
   }
