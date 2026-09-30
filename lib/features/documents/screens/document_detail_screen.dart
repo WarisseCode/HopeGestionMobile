@@ -1,52 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
-import '../models/document_item.dart';
+import '../../finances/models/finance_file_opener.dart';
+import '../../finances/models/finance_format.dart';
+import '../models/document.dart';
+import '../models/element_document.dart';
+import '../widgets/document_row.dart';
 
-/// Écran d'aperçu et de partage d'un document (Quittance, Contrat, Facture)
+/// Fiche d'un document réel (phase 4.6, étape A — lecture seule) : un
+/// fichier de `GET /api/documents` (bouton « Ouvrir ») ou une quittance
+/// manuelle de `GET /api/quittances` (données seules : pas de fichier
+/// serveur, le web génère son PDF côté navigateur).
 class DocumentDetailScreen extends StatelessWidget {
-  final DocumentItem document;
+  const DocumentDetailScreen({super.key, required this.element});
 
-  const DocumentDetailScreen({super.key, required this.document});
-
-  void _shareWhatsApp(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Préparation du partage WhatsApp pour « ${document.title} »',
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _download(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Téléchargement de « ${document.title}.pdf » (${document.size})',
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  final ElementDocument element;
 
   @override
   Widget build(BuildContext context) {
-    final status = document.status;
-
+    final element = this.element;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Top Bar
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Retour',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: Icon(
                       LucideIcons.arrow_left,
@@ -58,322 +43,28 @@ class DocumentDetailScreen extends StatelessWidget {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      document.title,
-                      style: AppTypography.titleScreen(fontSize: 20),
+                      element.categorie.libelle,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _shareWhatsApp(context),
-                    icon: Icon(
-                      LucideIcons.share_2,
-                      size: 20,
-                      color: AppColors.foreground,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _download(context),
-                    icon: Icon(
-                      LucideIcons.download,
-                      size: 20,
-                      color: AppColors.foreground,
+                      style: AppTypography.titleScreen(fontSize: 20),
                     ),
                   ),
                 ],
               ),
             ),
-
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
-                  // Statut Badge
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: status.backgroundColor,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          status.label.toUpperCase(),
-                          style: AppTypography.caption(color: status.textColor)
-                              .copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      Text(
-                        'Réf : ${document.id.toUpperCase()}',
-                        style: AppTypography.caption(
-                          color: AppColors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Simulation Visuelle de la feuille PDF (Feuille A4 stylisée)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border, width: 1.5),
-                      boxShadow: AppShadows.soft,
+                  _EnTete(element: element),
+                  const SizedBox(height: 16),
+                  switch (element) {
+                    ElementFichier(:final document) => _FicheFichier(
+                      document: document,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // En-tête du document officiel
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Center(
-                                        child: Text(
-                                          'H',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'HOPE GESTION',
-                                      style: AppTypography.labelUppercase(
-                                        color: AppColors.primary,
-                                        fontSize: 12,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Gestion Immobilière Moderne',
-                                  style: AppTypography.caption(
-                                    color: AppColors.mutedForeground,
-                                    fontSize: 9,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Tampon officiel
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: AppColors.positive,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'VALIDÉ & CERTIFIÉ',
-                                style:
-                                    AppTypography.caption(
-                                      color: AppColors.positive,
-                                      fontSize: 8.5,
-                                    ).copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Divider(color: AppColors.border, height: 1),
-                        const SizedBox(height: 16),
-
-                        // Titre du document
-                        Center(
-                          child: Text(
-                            document.title.toUpperCase(),
-                            style: AppTypography.titleScreen(fontSize: 17),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Center(
-                          child: Text(
-                            'Émis pour : ${document.property}',
-                            style: AppTypography.bodySmall(
-                              color: AppColors.mutedForeground,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Tableau des détails du document
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.positiveSoft,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(
-                            children: [
-                              _DocDetailRow(
-                                label: 'Bien rattaché',
-                                value: document.property,
-                              ),
-                              const SizedBox(height: 6),
-                              _DocDetailRow(
-                                label: 'Date d\'établissement',
-                                value:
-                                    '${document.date.day.toString().padLeft(2, '0')}/${document.date.month.toString().padLeft(2, '0')}/${document.date.year}',
-                              ),
-                              const SizedBox(height: 6),
-                              _DocDetailRow(
-                                label: 'Format de fichier',
-                                value:
-                                    'Document PDF certifié (${document.size})',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Cachet et signature
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Le Bailleur / Mandataire',
-                                  style: AppTypography.caption(
-                                    color: AppColors.mutedForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Hope Gestion SARL',
-                                  style: AppTypography.bodySmall(
-                                    color: AppColors.foreground,
-                                  ).copyWith(fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                ),
-                              ),
-                              child: Icon(
-                                LucideIcons.stamp,
-                                color: AppColors.primary,
-                                size: 24,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Actions rapides
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _shareWhatsApp(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      icon: const Icon(
-                        LucideIcons.message_circle,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                      label: const Text(
-                        'Partager via WhatsApp',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _download(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.foreground,
-                            side: BorderSide(color: AppColors.border),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                          ),
-                          icon: const Icon(LucideIcons.download, size: 16),
-                          label: const Text('Télécharger'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Impression envoyée vers l\'imprimante',
-                                ),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.foreground,
-                            side: BorderSide(color: AppColors.border),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                          ),
-                          icon: const Icon(LucideIcons.printer, size: 16),
-                          label: const Text('Imprimer'),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ElementQuittanceManuelle(:final quittance) =>
+                      _FicheQuittance(quittance: quittance),
+                  },
                 ],
               ),
             ),
@@ -384,27 +75,220 @@ class DocumentDetailScreen extends StatelessWidget {
   }
 }
 
-class _DocDetailRow extends StatelessWidget {
-  final String label;
-  final String value;
+class _EnTete extends StatelessWidget {
+  const _EnTete({required this.element});
 
-  const _DocDetailRow({required this.label, required this.value});
+  final ElementDocument element;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.positiveSoft,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              iconeCategorie(element.categorie),
+              size: 22,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  element.titre,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.body(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                AppBadge.neutral(element.categorie.libelle),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FicheFichier extends StatelessWidget {
+  const _FicheFichier({required this.document});
+
+  final Document document;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = document.url;
+    final lignes = <(String, String)>[
+      ('Catégorie', _libelleCategorie(document)),
+      if (document.createdAt != null)
+        ('Ajouté le', formatDateLongue(document.createdAt!)),
+      if (document.tailleOctets != null)
+        ('Taille', formatTaille(document.tailleOctets!)),
+      if (document.typeMime != null)
+        ('Format', libelleFormat(document.typeMime!)),
+      if (document.entiteLiee != null) ('Lié à', document.entiteLiee!),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          label,
-          style: AppTypography.caption(color: AppColors.mutedForeground),
-        ),
-        Text(
-          value,
-          style: AppTypography.caption(color: AppColors.foreground)
-              .copyWith(fontWeight: FontWeight.bold),
+        _Details(lignes: lignes),
+        if (document.description != null &&
+            document.description != document.nom) ...[
+          const SizedBox(height: 12),
+          AppCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'DESCRIPTION',
+                  style: AppTypography.labelUppercase(
+                    color: AppColors.mutedForeground,
+                    fontSize: 10.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(document.description!, style: AppTypography.bodySmall()),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+        if (url != null)
+          AppButton.primary(
+            label: 'Ouvrir',
+            icon: const Icon(
+              LucideIcons.external_link,
+              size: 18,
+              color: Colors.white,
+            ),
+            onPressed: () =>
+                ouvrirFichierOuCopier(context, AppConfig.resolveFileUrl(url)),
+          )
+        else
+          const AppInfoBanner(
+            text: "Aucun fichier n'est associé à ce document.",
+          ),
+      ],
+    );
+  }
+
+  /// Libellé de la catégorie ; valeur brute du serveur si elle n'est pas
+  /// reconnue (« Autre (contrat_signe) »), pour ne rien masquer.
+  static String _libelleCategorie(Document d) {
+    final brute = d.categorieBrute;
+    if (d.categorie == CategorieDocument.autre &&
+        brute != null &&
+        brute.toLowerCase() != 'autre') {
+      return 'Autre ($brute)';
+    }
+    return d.categorie.libelle;
+  }
+}
+
+class _FicheQuittance extends StatelessWidget {
+  const _FicheQuittance({required this.quittance});
+
+  final QuittanceManuelle quittance;
+
+  @override
+  Widget build(BuildContext context) {
+    final lignes = <(String, String)>[
+      if (quittance.numero != null) ('Numéro', quittance.numero!),
+      if (quittance.locataireNom != null)
+        ('Locataire', quittance.locataireNom!),
+      if (quittance.proprietaireNom != null)
+        ('Propriétaire', quittance.proprietaireNom!),
+      if (quittance.bien != null) ('Bien', quittance.bien!),
+      if (quittance.periode != null) ('Période', quittance.periode!),
+      if (quittance.montant != null)
+        ('Montant', formatMontant(quittance.montant!)),
+      if (quittance.dateEmission != null)
+        ("Date d'émission", formatDateLongue(quittance.dateEmission!)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Details(lignes: lignes),
+        const SizedBox(height: 16),
+        const AppInfoBanner(
+          text:
+              'Quittance saisie manuellement : son PDF est généré par '
+              "l'application web, aucun fichier n'est disponible ici.",
         ),
       ],
     );
   }
+}
+
+class _Details extends StatelessWidget {
+  const _Details({required this.lignes});
+
+  final List<(String, String)> lignes;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          for (var i = 0; i < lignes.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: AppColors.border),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 110,
+                    child: Text(
+                      lignes[i].$1,
+                      style: AppTypography.bodySmall(
+                        color: AppColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      lignes[i].$2,
+                      textAlign: TextAlign.end,
+                      style: AppTypography.bodySmall(
+                        color: AppColors.foreground,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// « PDF », « Image JPEG », sinon le type MIME tel quel.
+String libelleFormat(String typeMime) {
+  final t = typeMime.toLowerCase();
+  if (t == 'application/pdf') return 'PDF';
+  if (t.startsWith('image/')) {
+    final sousType = t.substring(6).replaceAll('jpg', 'jpeg').toUpperCase();
+    return 'Image $sousType';
+  }
+  return typeMime;
 }

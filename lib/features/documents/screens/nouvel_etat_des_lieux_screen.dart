@@ -3,7 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
 import '../models/document_item.dart';
-import 'document_detail_screen.dart';
+import 'apercu_non_enregistre_screen.dart';
 
 /// Formulaire de saisie d'un état des lieux contradictoire
 class NouvelEtatDesLieuxScreen extends StatefulWidget {
@@ -59,14 +59,16 @@ class _NouvelEtatDesLieuxScreenState extends State<NouvelEtatDesLieuxScreen> {
       id: 'edl-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
       title: 'État des lieux d\'$_type · $_selectedTenant',
       property: _selectedBien,
-      category: DocumentCategory.contrat,
+      category: DocumentCategory.etatDesLieux,
       status: DocumentStatus.signe,
       date: DateTime.now(),
       size: '2.1 Mo',
     );
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => DocumentDetailScreen(document: doc)),
+      MaterialPageRoute(
+        builder: (_) => ApercuNonEnregistreScreen(document: doc),
+      ),
     );
   }
 

@@ -3,7 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
 import '../models/document_item.dart';
-import 'document_detail_screen.dart';
+import 'apercu_non_enregistre_screen.dart';
 
 /// Formulaire de génération rapide d'une quittance de loyer
 class NouvelleQuittanceScreen extends StatefulWidget {
@@ -77,7 +77,9 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
     );
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => DocumentDetailScreen(document: doc)),
+      MaterialPageRoute(
+        builder: (_) => ApercuNonEnregistreScreen(document: doc),
+      ),
     );
   }
 

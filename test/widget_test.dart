@@ -14,6 +14,7 @@ import 'package:hope_gestion_mobile/features/dashboard/widgets/quick_action_shee
 import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/biens_screen.dart';
 import 'package:hope_gestion_mobile/features/biens/screens/nouveau_bien_screen.dart';
+import 'package:hope_gestion_mobile/features/documents/data/documents_repository.dart';
 import 'package:hope_gestion_mobile/features/finances/data/finances_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/locataires_screen.dart';
@@ -197,6 +198,55 @@ Future<ResponseBody> _shellResponder(RequestOptions options) async {
         'net_balance': 140000,
         'pending_total': 320000,
       }, 200);
+    // ShellScreen embarque aussi DocumentsScreen (onglet Docs, phase 4.6) :
+    // tableaux nus, comme `/expenses`.
+    case '/documents':
+      return ResponseBody.fromString(
+        jsonEncode([
+          {
+            'id': 7,
+            'nom': 'Bail_42.pdf',
+            'type': 'application/pdf',
+            'url': '/uploads/2026/09/Bail_42_abc.pdf',
+            'taille': '245760',
+            'categorie': 'baux',
+            'entity_type': 'lease',
+            'entity_id': 42,
+            'created_at': '2026-09-12T10:00:00.000Z',
+          },
+          {
+            'id': 8,
+            'nom': 'Facture plombier.pdf',
+            'type': 'application/pdf',
+            'url': '/uploads/2026/09/facture.pdf',
+            'taille': '51200',
+            'categorie': 'facture',
+            'created_at': '2026-09-05T10:00:00.000Z',
+          },
+        ]),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    case '/quittances':
+      return ResponseBody.fromString(
+        jsonEncode([
+          {
+            'id': 4,
+            'numero': 'QUI-MAN-2026-0004',
+            'locataire_name': 'Yacine Diop',
+            'bien': 'Résidence Palmiers',
+            'periode': 'Septembre 2026',
+            'montant': '185000.00',
+            'date_emission': '2026-09-10T12:00:00.000Z',
+          },
+        ]),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
   }
   throw UnimplementedError(options.path);
 }
@@ -263,6 +313,8 @@ void main() {
       BiensRepository.initialize(BiensRepository(apiClient: apiClient));
       // Idem pour FinancesScreen (onglet Finances).
       FinancesRepository.initialize(FinancesRepository(apiClient: apiClient));
+      // Idem pour DocumentsScreen (onglet Docs).
+      DocumentsRepository.initialize(DocumentsRepository(apiClient: apiClient));
       await AuthRepository.instance.restoreSession();
     });
 
@@ -568,35 +620,33 @@ void main() {
     await buildApp(tester);
     await tapTab(tester, 4); // Onglet Docs
 
-    // Vérifier les éléments clés
-    expect(find.text('42 DOCUMENTS'), findsOneWidget);
+    // Données réelles de `_shellResponder` (/documents + /quittances) :
+    // compteurs calculés depuis la liste, plus aucun chiffre figé.
+    expect(find.text('3 DOCUMENTS'), findsOneWidget);
     expect(find.text('Documents'), findsWidgets);
-    expect(find.text('QUITTANCES'), findsOneWidget);
-    expect(find.text('CONTRATS'), findsOneWidget);
-    expect(find.text('FACTURES'), findsOneWidget);
-    expect(find.text('12'), findsOneWidget);
-    expect(find.text('8'), findsOneWidget);
-    expect(find.text('22'), findsOneWidget);
-    expect(find.text('RÉCENTS'), findsOneWidget);
-    expect(find.text('Quittance · Avril 2026'), findsOneWidget);
-    expect(find.text('Générée'), findsWidgets);
-    expect(find.text('Contrat de location'), findsOneWidget);
-    expect(find.text('Signé'), findsWidgets);
-    expect(find.text('Facture HG-2026-041'), findsOneWidget);
-    expect(find.text('À relancer'), findsOneWidget);
+    expect(find.text('Tous (3)'), findsOneWidget);
+    expect(find.text('Baux (1)'), findsOneWidget);
+    expect(find.text('Quittances (1)'), findsOneWidget);
+    expect(find.text('Factures (1)'), findsOneWidget);
+    expect(find.text('Bail_42.pdf'), findsOneWidget);
+    expect(find.text('Quittance QUI-MAN-2026-0004'), findsOneWidget);
+    expect(find.text('Facture plombier.pdf'), findsOneWidget);
 
-    // Filtrer par QUITTANCES
-    await tester.tap(find.text('QUITTANCES'));
+    // Filtrer par Quittances (puces en défilement horizontal : amenées à
+    // l'écran avant l'appui).
+    await tester.ensureVisible(find.text('Quittances (1)'));
+    await tester.pump();
+    await tester.tap(find.text('Quittances (1)'));
     await tester.pumpAndSettle();
+    expect(find.text('Quittance QUI-MAN-2026-0004'), findsOneWidget);
+    expect(find.text('Bail_42.pdf'), findsNothing);
+    expect(find.text('Facture plombier.pdf'), findsNothing);
 
-    // Vérifier le filtre actif
-    expect(find.text('Quittance · Avril 2026'), findsOneWidget);
-    expect(find.text('Contrat de location'), findsNothing);
-    expect(find.text('Facture HG-2026-041'), findsNothing);
-
-    // Réinitialiser avec "Tout afficher"
-    await tester.tap(find.text('Tout afficher'));
+    // Retour à « Tous »
+    await tester.ensureVisible(find.text('Tous (3)'));
+    await tester.pump();
+    await tester.tap(find.text('Tous (3)'));
     await tester.pumpAndSettle();
-    expect(find.text('Contrat de location'), findsOneWidget);
+    expect(find.text('Bail_42.pdf'), findsOneWidget);
   });
 }

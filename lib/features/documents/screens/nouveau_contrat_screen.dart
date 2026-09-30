@@ -3,7 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
 import '../models/document_item.dart';
-import 'document_detail_screen.dart';
+import 'apercu_non_enregistre_screen.dart';
 
 /// Formulaire d'établissement d'un contrat de bail de location
 class NouveauContratScreen extends StatefulWidget {
@@ -77,7 +77,9 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
     );
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => DocumentDetailScreen(document: doc)),
+      MaterialPageRoute(
+        builder: (_) => ApercuNonEnregistreScreen(document: doc),
+      ),
     );
   }
 

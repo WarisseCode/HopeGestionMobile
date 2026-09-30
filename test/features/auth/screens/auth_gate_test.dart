@@ -14,6 +14,7 @@ import 'package:hope_gestion_mobile/features/auth/screens/login_screen.dart';
 import 'package:hope_gestion_mobile/features/auth/screens/offline_screen.dart';
 import 'package:hope_gestion_mobile/features/auth/screens/unsupported_role_screen.dart';
 import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
+import 'package:hope_gestion_mobile/features/documents/data/documents_repository.dart';
 import 'package:hope_gestion_mobile/features/finances/data/finances_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
 import 'package:hope_gestion_mobile/features/onboarding/data/onboarding_store.dart';
@@ -224,6 +225,16 @@ void main() {
           if (options.path == '/finances/stats') {
             return jsonResponse(<String, dynamic>{}, 200);
           }
+          // DocumentsScreen (onglet Docs, phase 4.6) : tableaux nus.
+          if (options.path == '/documents' || options.path == '/quittances') {
+            return ResponseBody.fromString(
+              '[]',
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            );
+          }
           return jsonResponse(_profileJson(), 200);
         },
       );
@@ -240,6 +251,10 @@ void main() {
     // Idem pour FinancesScreen (onglet Finances, phase 4.5).
     FinancesRepository.initialize(
       FinancesRepository(apiClient: repo.apiClient),
+    );
+    // Idem pour DocumentsScreen (onglet Docs, phase 4.6).
+    DocumentsRepository.initialize(
+      DocumentsRepository(apiClient: repo.apiClient),
     );
 
     await tester.pumpWidget(const MaterialApp(home: AuthGate()));

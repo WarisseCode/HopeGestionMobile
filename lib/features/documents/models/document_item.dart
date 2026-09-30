@@ -3,8 +3,10 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
 
-/// Catégorie de document
-enum DocumentCategory { quittance, contrat, facture }
+/// Catégorie d'un document **non enregistré** (aperçu des écrans de
+/// création, pas encore branchés au backend). Les documents réels utilisent
+/// `CategorieDocument` (`document.dart`).
+enum DocumentCategory { quittance, contrat, etatDesLieux, facture }
 
 /// Statut du document
 enum DocumentStatus { genere, signe, aRelancer, enAttente }
@@ -46,7 +48,10 @@ extension DocumentStatusExtension on DocumentStatus {
   }
 }
 
-/// Modèle d'un document numérique HopeGestion
+/// Document saisi dans un écran de création (`NouveauContratScreen`,
+/// `NouvelEtatDesLieuxScreen`, `NouvelleQuittanceScreen`) et affiché par
+/// `ApercuNonEnregistreScreen` — **rien n'est envoyé au serveur** (phase
+/// 4.6, étape A : lecture seule). La liste réelle utilise `Document`.
 class DocumentItem {
   final String id;
   final String title;
@@ -72,65 +77,10 @@ class DocumentItem {
         return LucideIcons.receipt;
       case DocumentCategory.contrat:
         return LucideIcons.file_pen;
+      case DocumentCategory.etatDesLieux:
+        return LucideIcons.clipboard_list;
       case DocumentCategory.facture:
         return LucideIcons.file_text;
     }
   }
-
-  /// Liste de démonstration conforme à la maquette 06-documents.png
-  static List<DocumentItem> get mockList => [
-    DocumentItem(
-      id: 'doc-1',
-      title: 'Quittance · Avril 2026',
-      property: 'Apt. 12 — Mbour',
-      category: DocumentCategory.quittance,
-      status: DocumentStatus.genere,
-      date: DateTime(2026, 4, 14),
-    ),
-    DocumentItem(
-      id: 'doc-2',
-      title: 'Contrat de location',
-      property: 'Duplex — Almadies',
-      category: DocumentCategory.contrat,
-      status: DocumentStatus.signe,
-      date: DateTime(2026, 4, 10),
-    ),
-    DocumentItem(
-      id: 'doc-3',
-      title: 'Facture HG-2026-041',
-      property: 'Local — Plateau',
-      category: DocumentCategory.facture,
-      status: DocumentStatus.aRelancer,
-      date: DateTime(2026, 4, 8),
-    ),
-    DocumentItem(
-      id: 'doc-4',
-      title: 'Quittance · Mars 2026',
-      property: 'Villa 4 — Ngor',
-      category: DocumentCategory.quittance,
-      status: DocumentStatus.genere,
-      date: DateTime(2026, 3, 28),
-    ),
-    DocumentItem(
-      id: 'doc-5',
-      title: 'Contrat commercial',
-      property: 'Boutique B2 — Cotonou',
-      category: DocumentCategory.contrat,
-      status: DocumentStatus.signe,
-      date: DateTime(2026, 3, 15),
-    ),
-    DocumentItem(
-      id: 'doc-6',
-      title: 'Facture HG-2026-038',
-      property: 'Immeuble Le Manguier',
-      category: DocumentCategory.facture,
-      status: DocumentStatus.signe,
-      date: DateTime(2026, 3, 5),
-    ),
-  ];
-
-  static const int quittancesCount = 12;
-  static const int contratsCount = 8;
-  static const int facturesCount = 22;
-  static const int totalDocuments = 42;
 }

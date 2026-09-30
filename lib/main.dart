@@ -9,6 +9,7 @@ import 'core/theme/theme_controller.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/screens/auth_gate.dart';
 import 'features/biens/data/biens_repository.dart';
+import 'features/documents/data/documents_repository.dart';
 import 'features/finances/data/finances_repository.dart';
 import 'features/locataires/data/locataires_repository.dart';
 import 'features/onboarding/data/onboarding_store.dart';
@@ -44,6 +45,9 @@ Future<void> main() async {
   );
   FinancesRepository.initialize(
     FinancesRepository(apiClient: apiClient),
+  );
+  DocumentsRepository.initialize(
+    DocumentsRepository(apiClient: apiClient),
   );
   // Non attendu : AuthGate (voir plus bas) affiche un écran de chargement
   // pendant que restoreSession() tourne, pas la peine de bloquer runApp.

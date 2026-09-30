@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
-import '../models/document_item.dart';
+import '../models/document.dart';
+import '../models/element_document.dart';
 
-/// Ligne représentant un document dans la section « RÉCENTS »
+/// Icône d'une catégorie de document (liste et fiche).
+IconData iconeCategorie(CategorieDocument categorie) => switch (categorie) {
+  CategorieDocument.bail => LucideIcons.file_pen,
+  CategorieDocument.quittance => LucideIcons.receipt,
+  CategorieDocument.facture => LucideIcons.file_text,
+  CategorieDocument.identite => LucideIcons.id_card,
+  CategorieDocument.proprietaire => LucideIcons.user_round,
+  CategorieDocument.genere => LucideIcons.file_check,
+  CategorieDocument.autre => LucideIcons.file,
+};
+
+/// Ligne d'un document dans la liste de `DocumentsScreen`.
 class DocumentRow extends StatelessWidget {
-  const DocumentRow({super.key, required this.document, this.onTap});
+  const DocumentRow({super.key, required this.element, this.onTap});
 
-  final DocumentItem document;
+  final ElementDocument element;
   final VoidCallback? onTap;
 
   @override
@@ -18,7 +31,6 @@ class DocumentRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            // Pastille circulaire vert menthe avec icône
             Container(
               width: 44,
               height: 44,
@@ -27,18 +39,20 @@ class DocumentRow extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: Icon(document.icon, size: 20, color: AppColors.primary),
+                child: Icon(
+                  iconeCategorie(element.categorie),
+                  size: 20,
+                  color: AppColors.primary,
+                ),
               ),
             ),
             const SizedBox(width: 14),
-
-            // Titre & Bien rattaché
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    document.title,
+                    element.titre,
                     style: AppTypography.body(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -46,34 +60,26 @@ class DocumentRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    document.property,
-                    style: AppTypography.bodySmall(
-                      color: AppColors.mutedForeground,
-                      fontSize: 12,
+                  if (element.sousTitre.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      element.sousTitre,
+                      style: AppTypography.bodySmall(
+                        color: AppColors.mutedForeground,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
                 ],
               ),
             ),
-
-            // Badge de statut à droite
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: document.status.backgroundColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                document.status.label,
-                style: AppTypography.kpiNote(
-                  color: document.status.textColor,
-                  fontSize: 11,
-                ).copyWith(fontWeight: FontWeight.w600),
-              ),
+            const SizedBox(width: 8),
+            Icon(
+              LucideIcons.chevron_right,
+              size: 18,
+              color: AppColors.mutedForeground,
             ),
           ],
         ),
