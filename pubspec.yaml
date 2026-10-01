@@ -45,6 +45,9 @@ dependencies:
   shared_preferences: ^2.5.5
   image_picker: ^1.2.3
   url_launcher: ^6.3.2
+  # Connexion Google native (idToken envoyé à POST /auth/mobile/google). API
+  # v7 : GoogleSignIn.instance.initialize(...) puis authenticate().
+  google_sign_in: ^7.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -69,6 +72,11 @@ dev_dependencies:
   # test/features/finances/screens/depense_screen_test.dart) : même raison
   # que flutter_secure_storage_platform_interface ci-dessus.
   image_picker_platform_interface: ^2.11.1
+
+  # Double de google_sign_in pour les tests (FakeGoogleSignInPlatform, voir
+  # test/features/auth/data/auth_repository_google_test.dart) : même raison
+  # que flutter_secure_storage_platform_interface ci-dessus.
+  google_sign_in_platform_interface: ^3.1.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

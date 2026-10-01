@@ -1,3 +1,17 @@
+Ne fais jamais le travail toi-même.
+Délègue toujours le travail à des sub-agents.
+N'utilise pas constamment Fable.
+Utilise Opus 5.5 pour les tâches le plus simples.
+
+## Routage de modèles
+- Code simple, résumés -> Opus 5.5
+- Architecture, refacto -> Fable 5.1
+- Contexe minimal pour chaque sub-agent
+- Résume chaque résultat en 3 Lignes.
+
+## Vérification
+- Relis le diff avant de cconclure
+
 ## Journal d'évolution du projet
 
 Après CHAQUE tâche terminée (fonctionnalité, correction, refactorisation, changement de config), mets à jour le fichier `docs/JOURNAL_PROJET.md` avant de conclure ta réponse.

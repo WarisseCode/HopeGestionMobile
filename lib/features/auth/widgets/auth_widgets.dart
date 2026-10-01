@@ -4,6 +4,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../data/auth_repository.dart';
+import '../data/auth_results.dart';
+
 const Color kTeal = Color(0xFF00BFA5);
 const Color kDark = Color(0xFF0E1F1C);
 
@@ -167,9 +170,55 @@ class AuthOrDivider extends StatelessWidget {
 
 // ── Google button ─────────────────────────────────────────────────────────────
 
-class AuthGoogleButton extends StatelessWidget {
+class AuthGoogleButton extends StatefulWidget {
   final String label;
   const AuthGoogleButton({super.key, required this.label});
+
+  @override
+  State<AuthGoogleButton> createState() => _AuthGoogleButtonState();
+}
+
+class _AuthGoogleButtonState extends State<AuthGoogleButton> {
+  bool _loading = false;
+
+  /// Lance la connexion Google via [AuthRepository]. En cas de succès, le
+  /// dépôt a déjà mis à jour son état : `AuthGate` navigue seul, rien à
+  /// faire ici. Les autres cas affichent au plus un SnackBar.
+  Future<void> _onPressed() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    final result = await AuthRepository.instance.loginWithGoogle();
+
+    // L'écran a pu changer pendant l'appel (succès → AuthGate) : ne plus
+    // toucher au contexte si le widget a été démonté.
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    final String? message = switch (result) {
+      GoogleLoginSuccess() => null,
+      GoogleLoginCancelled() => null,
+      GoogleLoginUnknownEmail() =>
+        "Aucun compte n'est associé à cette adresse Gmail. "
+            'Contactez votre administrateur.',
+      GoogleLoginRoleNotAllowed() =>
+        "Ce compte n'est pas autorisé sur l'application mobile.",
+      GoogleLoginUnauthorized(:final message) => message,
+      GoogleLoginNetworkError(:final message) => message,
+      GoogleLoginFailure(:final message) => message,
+    };
+    if (message == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message.trim().isEmpty
+              ? 'La connexion avec Google a échoué. Réessayez.'
+              : message,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,16 +226,22 @@ class AuthGoogleButton extends StatelessWidget {
       width: double.infinity,
       height: 48,
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: _loading ? null : _onPressed,
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
           side: BorderSide(color: kDark.withValues(alpha: 0.15)),
         ),
-        icon: const _GoogleIcon(),
+        icon: _loading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: kTeal),
+              )
+            : const _GoogleIcon(),
         label: Text(
-          label,
+          widget.label,
           style: GoogleFonts.ibmPlexSans(
             fontSize: 14,
             fontWeight: FontWeight.w500,

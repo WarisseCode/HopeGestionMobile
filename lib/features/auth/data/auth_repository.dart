@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
@@ -212,6 +214,103 @@ class AuthRepository extends ChangeNotifier {
       // Rôle déjà validé ci-dessus ; seul un échec réseau juste après (entre
       // le login et /auth/profile) peut amener ici, tokens déjà enregistrés.
       _ => const LoginFailure(
+        'Connexion réussie, mais votre profil est momentanément indisponible. '
+        'Réessayez.',
+        ApiExceptionType.unknown,
+      ),
+    };
+  }
+
+  /// Initialisation de `GoogleSignIn.instance`, mémorisée : la doc de
+  /// `google_sign_in` 7.x exige un seul appel à `initialize()` (un second
+  /// appel est un « comportement indéfini »). Portée par l'instance (une
+  /// seule en production, voir [instance]) plutôt que statique, pour que
+  /// chaque test, qui construit son propre repository avec son propre double
+  /// de plateforme, initialise ce double. Remise à `null` en cas d'échec
+  /// pour permettre une nouvelle tentative.
+  Future<void>? _googleSignInInit;
+
+  Future<void> _ensureGoogleSignInInitialized() {
+    return _googleSignInInit ??= GoogleSignIn.instance
+        .initialize(serverClientId: AppConfig.googleWebClientId)
+        .catchError((Object error, StackTrace stack) {
+          _googleSignInInit = null;
+          return Future<void>.error(error, stack);
+        });
+  }
+
+  /// Sélecteur de compte Google natif (`authenticate()`), puis
+  /// `POST /auth/mobile/google` avec l'`idToken` obtenu. Le contrôle du
+  /// rôle est fait par le serveur (403 sans token émis) : pas de logique
+  /// `_isRoleAllowed`/révocation ici, contrairement à [login]. Sur succès,
+  /// enregistrement des tokens et chargement du profil exactement comme
+  /// [login].
+  Future<GoogleLoginResult> loginWithGoogle() async {
+    final String idToken;
+    try {
+      await _ensureGoogleSignInInitialized();
+      final account = await GoogleSignIn.instance.authenticate();
+      final token = account.authentication.idToken;
+      if (token == null || token.isEmpty) {
+        return const GoogleLoginFailure(
+          'Google n\'a pas fourni de jeton d\'identité. Réessayez.',
+          ApiExceptionType.unknown,
+        );
+      }
+      idToken = token;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return const GoogleLoginCancelled();
+      }
+      return const GoogleLoginFailure(
+        'Connexion Google impossible pour le moment. Réessayez.',
+        ApiExceptionType.unknown,
+      );
+    }
+
+    // Seul l'idToken sert : la session Google locale est fermée au mieux
+    // tout de suite, pour que la prochaine tentative repropose le choix du
+    // compte (recommandé par la doc d'`authenticate()`). Un échec ici n'a
+    // aucun impact sur la connexion HopeGestion.
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
+
+    final Map<String, dynamic> data;
+    try {
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/auth/mobile/google',
+        method: 'POST',
+        data: {'idToken': idToken},
+      );
+      data = response.data!;
+    } on ApiException catch (e) {
+      return switch (e.type) {
+        ApiExceptionType.notFound => GoogleLoginUnknownEmail(e.message),
+        ApiExceptionType.forbidden => const GoogleLoginRoleNotAllowed(),
+        ApiExceptionType.unauthorized => GoogleLoginUnauthorized(e.message),
+        ApiExceptionType.network ||
+        ApiExceptionType.timeout => GoogleLoginNetworkError(e.message),
+        _ => GoogleLoginFailure(e.message, e.type),
+      };
+    }
+
+    await _tokenStorage.savePair(
+      TokenPair(
+        accessToken: data['token'] as String,
+        refreshToken: data['refreshToken'] as String,
+      ),
+    );
+
+    await _loadProfileAndSetState();
+    return switch (_state) {
+      AuthAuthenticated(user: final user) => GoogleLoginSuccess(user),
+      // Garde-fou : rôle refusé par le profil malgré le contrôle serveur
+      // (tokens déjà effacés par _loadProfileAndSetState).
+      AuthUnsupportedRole() => const GoogleLoginRoleNotAllowed(),
+      // Même repli que [login] : échec réseau entre la connexion et
+      // /auth/profile, tokens déjà enregistrés.
+      _ => const GoogleLoginFailure(
         'Connexion réussie, mais votre profil est momentanément indisponible. '
         'Réessayez.',
         ApiExceptionType.unknown,

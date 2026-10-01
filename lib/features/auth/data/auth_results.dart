@@ -56,6 +56,70 @@ class LoginFailure extends LoginResult {
   final ApiExceptionType type;
 }
 
+/// Résultat de `AuthRepository.loginWithGoogle`.
+///
+/// Même principe que [LoginResult] : seul [GoogleLoginSuccess] correspond à
+/// un changement d'`AuthState` ; tous les autres cas laissent l'état
+/// inchangé (`unauthenticated`) et aucun token n'est enregistré.
+sealed class GoogleLoginResult {
+  const GoogleLoginResult();
+}
+
+class GoogleLoginSuccess extends GoogleLoginResult {
+  const GoogleLoginSuccess(this.user);
+
+  final AppUser user;
+}
+
+/// L'utilisateur a fermé le sélecteur de compte Google
+/// (`GoogleSignInExceptionCode.canceled`). Aucun appel backend, aucun
+/// message à afficher.
+class GoogleLoginCancelled extends GoogleLoginResult {
+  const GoogleLoginCancelled();
+}
+
+/// 404 : aucun compte HopeGestion pour cet email Google.
+class GoogleLoginUnknownEmail extends GoogleLoginResult {
+  const GoogleLoginUnknownEmail(this.message);
+
+  final String message;
+}
+
+/// 403 : rôle non autorisé sur mobile — contrôle déjà fait par le serveur,
+/// qui n'a émis aucun token (contrairement à [LoginUnsupportedRole], pas de
+/// révocation nécessaire). Peut aussi être renvoyé si le profil récupéré
+/// juste après une connexion réussie porte un rôle refusé (tokens alors déjà
+/// effacés par `AuthRepository`).
+class GoogleLoginRoleNotAllowed extends GoogleLoginResult {
+  const GoogleLoginRoleNotAllowed();
+}
+
+/// 401 : jeton Google invalide, email Google non vérifié, ou compte
+/// inactif/suspendu — un seul cas côté client, [message] est celui du
+/// serveur.
+class GoogleLoginUnauthorized extends GoogleLoginResult {
+  const GoogleLoginUnauthorized(this.message);
+
+  final String message;
+}
+
+/// Réseau indisponible ou délai dépassé lors de l'appel backend.
+class GoogleLoginNetworkError extends GoogleLoginResult {
+  const GoogleLoginNetworkError(this.message);
+
+  final String message;
+}
+
+/// Tout le reste : erreur du SDK Google autre qu'une annulation (mauvaise
+/// configuration, interruption, `idToken` absent...) avec
+/// [ApiExceptionType.unknown], ou réponse backend inattendue (429, 5xx...).
+class GoogleLoginFailure extends GoogleLoginResult {
+  const GoogleLoginFailure(this.message, this.type);
+
+  final String message;
+  final ApiExceptionType type;
+}
+
 /// Résultat de `AuthRepository.verifyEmail`.
 sealed class VerifyEmailResult {
   const VerifyEmailResult();

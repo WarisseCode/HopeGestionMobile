@@ -895,3 +895,28 @@ session/projet que le chantier est piloté.
 - **Feuille de route B2 (non commencée)** : PDF serveur pour les quittances manuelles (même charte que `ReceiptService`, nom de fichier opaque, nouvelle colonne d'URL sur `manual_quittances`) — nécessaire seulement si le PDF mobile devient un besoin réel ; sinon le web reste la seule source du PDF.
 - **Problèmes rencontrés** : aucun blocage. `flutter test` : **374/374** (28 nouveaux tests). `flutter analyze` : 17 infos (un de moins que la référence T-047 : la réécriture de `nouvelle_quittance_screen.dart` a fait disparaître l'un des trois `curly_braces` préexistants ; aucune nouvelle info). Pas de `dart format` hors périmètre. Pas de commit.
 - **Remplace / modifie** : suite de T-047 (étape A, lecture seule) ; remplace le formulaire factice de `NouvelleQuittanceScreen` issu de T-025.
+
+### T-049 : Connexion Google — couche dépôt (`AuthRepository.loginWithGoogle`)
+- **Date** : 2026-10-02
+- **Statut** : Terminée
+- **Type** : Fonctionnalité
+- **Description** : Ajout de `AuthRepository.loginWithGoogle()` : sélecteur de compte natif `google_sign_in` 7.2.0, puis `POST /auth/mobile/google` avec `{ idToken }`, stockage des tokens et chargement du profil comme `login()`. Résultats scellés `GoogleLoginResult` (Success, Cancelled, UnknownEmail, RoleNotAllowed, Unauthorized, NetworkError, Failure). Aucun écran touché (bouton fait séparément).
+- **Fichiers touchés** : `pubspec.yaml` (+ `google_sign_in: ^7.2.0`, dev `google_sign_in_platform_interface: ^3.1.0`), `pubspec.lock`, `lib/core/config/app_config.dart` (`googleWebClientId`), `lib/core/network/api_client.dart` (`/auth/mobile/google` ajouté aux routes publiques), `lib/features/auth/data/auth_results.dart`, `lib/features/auth/data/auth_repository.dart`, `test/features/auth/data/auth_repository_google_test.dart` (nouveau).
+- **Décisions & justifications** :
+  - API v7 vérifiée dans le source du paquet (cache pub) : `initialize()` doit être appelé **une seule fois** (« comportement indéfini » sinon) → Future mémorisée par instance de dépôt, remise à zéro en cas d'échec. `authenticate()` lève `GoogleSignInException` ; seul `canceled` donne `GoogleLoginCancelled`, les autres codes donnent `GoogleLoginFailure`. `idToken` nul → `GoogleLoginFailure`.
+  - `GoogleSignIn.instance.signOut()` au mieux juste après l'obtention de l'`idToken` : seule l'identité sert, et la doc d'`authenticate()` recommande un `signOut` avant une nouvelle authentification (la prochaine tentative repropose le choix du compte).
+  - 403 → `GoogleLoginRoleNotAllowed` **sans changer `AuthState`** (contrôle fait par le serveur, aucun token émis, pas de révocation). Garde-fou : si le profil chargé après succès porte un rôle refusé, même résultat (tokens déjà effacés).
+  - `/auth/mobile/google` ajouté à `_publicAuthPaths` d'`ApiClient` : sans cela, un 401 « métier » (jeton Google invalide, compte suspendu) déclenchait une tentative de refresh.
+  - `googleWebClientId` : identifiant client OAuth Web (public, pas un secret), surchargeable par `--dart-define=GOOGLE_WEB_CLIENT_ID`.
+  - Double de test : classe `FakeGoogleSignInPlatform` qui étend `GoogleSignInPlatform` (jeton `PlatformInterface` valide sans mockito, que le projet n'utilise pas ; les tests officiels du paquet utilisent mockito + `MockPlatformInterfaceMixin`).
+- **Problèmes rencontrés** : `flutter pub get` signale un échec de suppression de `windows/flutter/ephemeral/.plugin_symlinks` (Windows, sans incidence : dépendances résolues). `flutter analyze` (auth, config, network, tests auth/data) : aucun problème. `flutter test test/features/auth/data/ test/core/network/` : 57/57 (9 nouveaux). Pas de commit.
+
+### T-050 : Connexion Google — bouton `AuthGoogleButton` branché sur `loginWithGoogle`
+- **Date** : 2026-10-02
+- **Statut** : Terminée
+- **Type** : Fonctionnalité
+- **Description** : `AuthGoogleButton` devient un `StatefulWidget` : au tap il appelle `AuthRepository.instance.loginWithGoogle()`, se désactive et affiche un indicateur pendant l'appel. Succès et annulation n'affichent rien (`AuthGate` navigue seul) ; email inconnu et rôle refusé ont un SnackBar dédié ; 401/réseau/autres affichent le message du résultat. Le SnackBar provisoire « Bientôt disponible » est supprimé.
+- **Fichiers touchés** : `lib/features/auth/widgets/auth_widgets.dart`, `test/features/auth/widgets/auth_widgets_test.dart` (réécrit, 7 tests).
+- **Décisions & justifications** : constructeur inchangé (`label` requis) → `login_screen`, `register_screen`, `design_system_preview_screen` compilent sans modification. `mounted` vérifié après l'await avant `setState`/`ScaffoldMessenger`. Double de test : sous-classe de `AuthRepository` (construite avec un `ApiClient` sur `FakeAdapter`) qui ne surcharge que `loginWithGoogle`, enregistrée via `AuthRepository.initialize`. `widget_test.dart` et `auth_gate_test.dart` ne tapent pas le bouton : aucun changement.
+- **Problèmes rencontrés** : un `Completer` créé dans `setUp` (hors zone `fakeAsync`) n'était jamais vu par `pump()` → créé paresseusement au premier appel, dans la zone du test. `flutter analyze` : 17 infos préexistantes, aucune dans les fichiers touchés. `flutter test` : 390/390.
+- **Remplace / modifie** : comportement provisoire « Bientôt disponible » du bouton (étape antérieure non journalisée).

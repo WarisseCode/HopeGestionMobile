@@ -190,6 +190,9 @@ class ApiClient {
     '/auth/mobile/login',
     '/auth/mobile/refresh',
     '/auth/mobile/logout',
+    // Connexion Google mobile : un 401 (jeton Google invalide, compte
+    // inactif...) ne doit jamais déclencher de refresh.
+    '/auth/mobile/google',
     '/auth/forgot-password',
     '/auth/reset-password',
     '/auth/accept-invite',

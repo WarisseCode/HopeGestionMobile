@@ -26,6 +26,19 @@ abstract final class AppConfig {
   static const String _prodApiBaseUrl = 'https://hopegestion.com/api';
   static const String _localApiBaseUrl = 'http://10.0.2.2:5001/api';
 
+  /// Identifiant client OAuth **Web** de Google, passé comme
+  /// `serverClientId` à `GoogleSignIn.instance.initialize` : c'est
+  /// l'audience de l'`idToken` que le backend vérifie sur
+  /// `POST /auth/mobile/google`. Ce n'est PAS un secret (il figure aussi en
+  /// clair dans le bundle web) — seul le "client secret" associé, jamais
+  /// utilisé côté mobile, l'est. Surchargeable via
+  /// `--dart-define=GOOGLE_WEB_CLIENT_ID=...`.
+  static const String googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue:
+        '504156399597-3ojo7atj1vm59sj7l6o2om9qagafvdb4.apps.googleusercontent.com',
+  );
+
   static String get apiBaseUrl {
     if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
     return kDebugMode ? _localApiBaseUrl : _prodApiBaseUrl;
