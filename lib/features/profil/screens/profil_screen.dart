@@ -7,7 +7,7 @@ import '../../../core/design_system.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/auth_state.dart';
 import '../../biens/data/biens_repository.dart';
-import '../../locataires/models/contacts_repository.dart';
+import '../../locataires/data/locataires_repository.dart';
 import '../../parametres/screens/parametres_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
@@ -31,8 +31,25 @@ String _initialsFor(String displayName) {
 }
 
 /// Écran du profil utilisateur (Gestionnaire immobilier)
-class ProfilScreen extends StatelessWidget {
+class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key});
+
+  @override
+  State<ProfilScreen> createState() => _ProfilScreenState();
+}
+
+class _ProfilScreenState extends State<ProfilScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Stat « LOCATAIRES » : liste réelle partagée, normalement déjà chargée
+    // par `LocatairesScreen` (onglet Contacts du shell) ; relue ici si vide.
+    // Échec ignoré : la stat reste à 0 (la liste reste rechargeable depuis
+    // l'onglet Contacts), pas d'erreur bloquante sur l'écran profil.
+    if (LocatairesRepository.instance.items.isEmpty) {
+      unawaited(LocatairesRepository.instance.refresh());
+    }
+  }
 
   void _confirmLogout(BuildContext context) {
     showDialog(
@@ -119,7 +136,7 @@ class ProfilScreen extends StatelessWidget {
               child: ListenableBuilder(
                 listenable: Listenable.merge([
                   BiensRepository.instance,
-                  ContactsRepository.instance,
+                  LocatairesRepository.instance,
                   AuthRepository.instance,
                 ]),
                 builder: (context, _) {
@@ -152,7 +169,8 @@ class ProfilScreen extends StatelessWidget {
                   final occupationRate = totalLots == 0
                       ? 0
                       : ((lotsOccupes / totalLots) * 100).round();
-                  final tenants = ContactsRepository.instance.tenantCount;
+                  final tenants =
+                      LocatairesRepository.instance.items.length;
 
                   return ListView(
                     padding: const EdgeInsets.symmetric(
@@ -402,7 +420,14 @@ class _ProfileMenuContainer extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: AppShadows.soft,
       ),
-      child: Column(children: children),
+      // Material transparent : les ListTile peignent leurs effets d'encre
+      // sur le Material le plus proche — sans lui, ce serait celui du
+      // Scaffold, sous le fond de ce Container (effets invisibles, et
+      // assertion de debug Flutter).
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(children: children),
+      ),
     );
   }
 }

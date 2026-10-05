@@ -4,10 +4,9 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../../core/design_system.dart';
 
 /// Ligne de contact dans la liste Locataires / Contacts. Prend des champs
-/// simples plutôt qu'un `Contact` (mock) : réutilisée depuis la phase 4.3
-/// aussi bien pour des locataires réels (`Locataire`) que pour les
-/// propriétaires encore mockés (`Contact`), sans coupler ce widget à l'un
-/// ou l'autre modèle.
+/// simples plutôt qu'un modèle : réutilisée aussi bien pour les locataires
+/// (`Locataire`) que pour les propriétaires (`Owner`), sans coupler ce
+/// widget à l'un ou l'autre.
 class ContactRow extends StatelessWidget {
   const ContactRow({
     super.key,

@@ -110,3 +110,21 @@ class OwnersListFailure extends OwnersListResult {
   final String message;
   final ApiExceptionType type;
 }
+
+sealed class OwnerDetailResult {
+  const OwnerDetailResult();
+}
+
+class OwnerDetailSuccess extends OwnerDetailResult {
+  const OwnerDetailSuccess(this.owner);
+  final Owner owner;
+}
+
+/// [type] permet à l'écran de distinguer 403 (`forbidden` : propriétaire
+/// non rattaché à l'utilisateur, voir `checkOwnerAccess`), 404 (`notFound` :
+/// inexistant ou désactivé, `is_active = FALSE`) et réseau.
+class OwnerDetailFailure extends OwnerDetailResult {
+  const OwnerDetailFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}

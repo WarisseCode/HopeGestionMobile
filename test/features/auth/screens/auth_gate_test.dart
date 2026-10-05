@@ -17,6 +17,7 @@ import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
 import 'package:hope_gestion_mobile/features/documents/data/documents_repository.dart';
 import 'package:hope_gestion_mobile/features/finances/data/finances_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
+import 'package:hope_gestion_mobile/features/locataires/data/owners_repository.dart';
 import 'package:hope_gestion_mobile/features/onboarding/data/onboarding_store.dart';
 import 'package:hope_gestion_mobile/features/onboarding/screens/onboarding_screen.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -246,6 +247,8 @@ void main() {
     LocatairesRepository.initialize(
       LocatairesRepository(apiClient: repo.apiClient),
     );
+    // Onglet Propriétaires de LocatairesScreen.
+    OwnersRepository.initialize(OwnersRepository(apiClient: repo.apiClient));
     // Idem pour BiensScreen (onglet Biens, phase 4.4).
     BiensRepository.initialize(BiensRepository(apiClient: repo.apiClient));
     // Idem pour FinancesScreen (onglet Finances, phase 4.5).

@@ -6,8 +6,8 @@ import '../models/locataire.dart';
 import 'locataire_results.dart';
 
 /// Source de vérité unique pour la liste des locataires réels, partagée par
-/// tous les écrans — même rôle que `BiensRepository`/`ContactsRepository`
-/// (mockés), mais avec un constructeur public prenant l'[ApiClient] en
+/// tous les écrans — même rôle que `BiensRepository`/`OwnersRepository`,
+/// avec un constructeur public prenant l'[ApiClient] en
 /// paramètre (même raison qu'`AuthRepository` : les tests construisent leur
 /// propre instance, ne touchent jamais à [instance]/[initialize]).
 class LocatairesRepository extends ChangeNotifier {

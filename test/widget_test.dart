@@ -17,6 +17,7 @@ import 'package:hope_gestion_mobile/features/biens/screens/nouveau_bien_screen.d
 import 'package:hope_gestion_mobile/features/documents/data/documents_repository.dart';
 import 'package:hope_gestion_mobile/features/finances/data/finances_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
+import 'package:hope_gestion_mobile/features/locataires/data/owners_repository.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/locataires_screen.dart';
 import 'package:hope_gestion_mobile/features/locataires/screens/nouveau_locataire_screen.dart';
 import 'package:hope_gestion_mobile/core/screens/shell_screen.dart';
@@ -118,7 +119,21 @@ Future<ResponseBody> _shellResponder(RequestOptions options) async {
         ],
       }, 200);
     case '/owners':
-      return jsonResponse({'success': true, 'owners': <dynamic>[]}, 200);
+      // Onglet Propriétaires de LocatairesScreen (`OwnersRepository`) :
+      // compteurs en chaîne, comme les renvoie node-postgres (COUNT).
+      return jsonResponse({
+        'success': true,
+        'owners': [
+          {
+            'id': 5,
+            'name': 'Camara',
+            'first_name': 'Mamadou',
+            'total_properties': '1',
+            'total_lots': '3',
+          },
+          {'id': 6, 'name': 'SCI Almadies', 'type': 'company'},
+        ],
+      }, 200);
     case '/biens/immeubles':
       // ShellScreen embarque aussi BiensScreen (onglet Biens), qui charge
       // de vraies données via /biens/immeubles dès son premier frame
@@ -308,6 +323,8 @@ void main() {
       LocatairesRepository.initialize(
         LocatairesRepository(apiClient: apiClient),
       );
+      // Onglet Propriétaires de LocatairesScreen.
+      OwnersRepository.initialize(OwnersRepository(apiClient: apiClient));
       // ShellScreen embarque aussi BiensScreen (onglet Biens, voir
       // IndexedStack) : accédée dès le premier frame, comme les autres.
       BiensRepository.initialize(BiensRepository(apiClient: apiClient));
@@ -532,9 +549,10 @@ void main() {
     await tester.tap(find.text('PROPRIÉTAIRES'));
     await tester.pumpAndSettle();
 
-    // Seuls les propriétaires sont visibles
-    expect(find.text('Mamadou Camara'), findsOneWidget);
-    expect(find.text('Aïcha Sarr'), findsOneWidget);
+    // Seuls les propriétaires (réels, `/owners`) sont visibles —
+    // `displayName` = nom puis prénom.
+    expect(find.text('Camara Mamadou'), findsOneWidget);
+    expect(find.text('SCI Almadies'), findsOneWidget);
     expect(find.text('Yacine Diop'), findsNothing);
   });
 
