@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/design_system.dart';
+import 'core/i18n/locale_controller.dart';
 import 'core/network/api_client.dart';
 import 'core/network/token_storage.dart';
 import 'core/theme/theme_controller.dart';
@@ -23,6 +24,11 @@ Future<void> main() async {
   // (lu de façon synchrone par `AuthGate`) doit déjà refléter le disque à
   // ce moment-là.
   await OnboardingStore.instance.load();
+  // Préférences d'affichage relues avant runApp : le premier frame utilise
+  // directement le thème et la langue choisis, sans flash de la valeur par
+  // défaut.
+  await ThemeController.instance.load();
+  await LocaleController.instance.load();
 
   // Un seul TokenStorage/ApiClient/AuthRepository pour toute l'app (accès
   // global via `AuthRepository.instance`, voir sa doc de classe). Le cache

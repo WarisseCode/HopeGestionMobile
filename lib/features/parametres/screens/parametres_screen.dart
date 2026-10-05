@@ -6,6 +6,7 @@ import '../../../core/i18n/app_strings.dart';
 import '../../../core/i18n/locale_controller.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
+import '../../profil/screens/change_password_screen.dart';
 import '../models/app_settings_repository.dart';
 
 /// Écran des paramètres de l'application HopeGestion
@@ -180,18 +181,10 @@ class _ParametresScreenState extends State<ParametresScreen> {
                           _SettingsTile(
                             icon: LucideIcons.lock,
                             title: AppStrings.t('Changer de mot de passe'),
-                            subtitle: AppStrings.t(
-                              'Dernière modification il y a 3 mois',
-                            ),
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    AppStrings.t(
-                                      'Changement de mot de passe disponible en ligne',
-                                    ),
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ChangePasswordScreen(),
                                 ),
                               );
                             },
@@ -215,7 +208,15 @@ class _ParametresScreenState extends State<ParametresScreen> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const OnboardingScreen(),
+                                  // Revoir la présentation depuis Paramètres :
+                                  // utilisateur déjà connecté, on revient
+                                  // simplement ici au lieu du comportement par
+                                  // défaut (remplacement par LoginScreen).
+                                  builder: (onboardingContext) =>
+                                      OnboardingScreen(
+                                        onDone: () =>
+                                            Navigator.pop(onboardingContext),
+                                      ),
                                 ),
                               );
                             },
@@ -315,7 +316,13 @@ class _SettingsContainer extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: AppShadows.soft,
       ),
-      child: Column(children: children),
+      // Material transparent : les ListTile peignent leurs effets d'encre sur
+      // le Material le plus proche, sinon masqués par le fond du Container
+      // (assertion Flutter en mode debug, levée notamment en widget test).
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(children: children),
+      ),
     );
   }
 }

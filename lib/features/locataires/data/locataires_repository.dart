@@ -180,6 +180,10 @@ class LocatairesRepository extends ChangeNotifier {
   /// qu'avant si l'utilisateur ne l'a pas modifiée) plutôt qu'une mise à
   /// jour partielle — l'écran d'édition doit toujours pré-remplir puis
   /// renvoyer l'intégralité du formulaire.
+  ///
+  /// [photoPieceUrl] n'est pas éditable depuis le mobile (pièce scannée
+  /// ajoutée depuis le web) : l'appelant doit transmettre la valeur actuelle
+  /// du locataire pour qu'elle soit préservée, sinon elle serait effacée.
   Future<UpdateLocataireResult> update({
     required int id,
     required String nom,
@@ -197,6 +201,7 @@ class LocatairesRepository extends ChangeNotifier {
     String? modePaiementPreferentiel,
     String? adresseActuelle,
     String? photoProfilUrl,
+    String? photoPieceUrl,
   }) async {
     try {
       await _apiClient.request<Map<String, dynamic>>(
@@ -218,6 +223,7 @@ class LocatairesRepository extends ChangeNotifier {
           'mode_paiement_preferentiel': modePaiementPreferentiel,
           'adresse_actuelle': adresseActuelle,
           'photo_profil_url': photoProfilUrl,
+          'photo_piece_url': photoPieceUrl,
         },
       );
       await refresh();

@@ -354,6 +354,46 @@ void main() {
       },
     );
 
+    test(
+      'préserve photo_piece_url (pièce scannée ajoutée depuis le web) : '
+      'renvoyée inchangée dans le corps du PUT',
+      () async {
+        const pieceUrl = '/uploads/pieces/1-cni.jpg';
+        Map? seenData;
+        final repo = _repo((options) async {
+          if (options.method == 'PUT' && options.path == '/locataires/1') {
+            seenData = options.data as Map;
+            return jsonResponse({'message': 'Locataire mis à jour'}, 200);
+          }
+          return jsonResponse({
+            'locataires': [
+              {..._tenantJson(), 'photo_piece_url': pieceUrl},
+            ],
+          }, 200);
+        });
+
+        await repo.refresh();
+        final locataire = repo.items.single;
+        expect(locataire.photoPieceUrl, pieceUrl);
+
+        final result = await repo.update(
+          id: locataire.id,
+          nom: 'Diop modifié',
+          prenoms: locataire.prenoms,
+          telephonePrincipal: locataire.telephonePrincipal,
+          type: locataire.type,
+          statut: locataire.statut,
+          paiementEchelonne: locataire.paiementEchelonne,
+          photoPieceUrl: locataire.photoPieceUrl,
+        );
+
+        expect(result, isA<UpdateLocataireSuccess>());
+        expect(seenData, isNotNull);
+        expect(seenData!.containsKey('photo_piece_url'), isTrue);
+        expect(seenData!['photo_piece_url'], pieceUrl);
+      },
+    );
+
     test('400 de validation → UpdateLocataireValidationFailed', () async {
       final repo = _repo(
         (options) async => jsonResponse({'message': 'Email invalide'}, 400),

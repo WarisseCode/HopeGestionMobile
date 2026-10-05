@@ -102,6 +102,9 @@ class _EditLocataireScreenState extends State<EditLocataireScreen> {
       modePaiementPreferentiel: widget.locataire.modePaiementPreferentiel,
       adresseActuelle: _adresseCtrl.text.trim(),
       photoProfilUrl: _photoProfilUrl,
+      // Non modifiable ici (pièce scannée ajoutée depuis le web) : renvoyée
+      // telle quelle pour ne pas être effacée par le `PUT` sans `COALESCE`.
+      photoPieceUrl: widget.locataire.photoPieceUrl,
     );
 
     if (!mounted) return;

@@ -3,6 +3,9 @@ Délègue toujours le travail à des sub-agents.
 N'utilise pas constamment Fable.
 Utilise Opus 5.5 pour les tâches le plus simples.
 
+## Règles
+Fais vérifier chaque ligne de code créer ou modifier par Codex avant de passer à la suite
+
 ## Routage de modèles
 - Code simple, résumés -> Opus 5.5
 - Architecture, refacto -> Fable 5.1

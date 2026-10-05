@@ -920,3 +920,39 @@ session/projet que le chantier est piloté.
 - **Décisions & justifications** : constructeur inchangé (`label` requis) → `login_screen`, `register_screen`, `design_system_preview_screen` compilent sans modification. `mounted` vérifié après l'await avant `setState`/`ScaffoldMessenger`. Double de test : sous-classe de `AuthRepository` (construite avec un `ApiClient` sur `FakeAdapter`) qui ne surcharge que `loginWithGoogle`, enregistrée via `AuthRepository.initialize`. `widget_test.dart` et `auth_gate_test.dart` ne tapent pas le bouton : aucun changement.
 - **Problèmes rencontrés** : un `Completer` créé dans `setUp` (hors zone `fakeAsync`) n'était jamais vu par `pump()` → créé paresseusement au premier appel, dans la zone du test. `flutter analyze` : 17 infos préexistantes, aucune dans les fichiers touchés. `flutter test` : 390/390.
 - **Remplace / modifie** : comportement provisoire « Bientôt disponible » du bouton (étape antérieure non journalisée).
+
+### T-051 : Locataires — préservation de `photo_piece_url` à l'édition
+- **Date** : 2026-10-04
+- **Statut** : Terminée
+- **Type** : Correction
+- **Description** : `LocatairesRepository.update()` envoie désormais `photo_piece_url` dans le corps du `PUT /api/locataires/:id` ; l'écran d'édition y transmet la valeur actuelle du locataire (`widget.locataire.photoPieceUrl`). Une pièce scannée ajoutée depuis le web n'est plus effacée par une édition mobile.
+- **Fichiers touchés** : `lib/features/locataires/data/locataires_repository.dart`, `lib/features/locataires/screens/edit_locataire_screen.dart`, `test/features/locataires/data/locataires_repository_test.dart`.
+- **Décisions & justifications** : backend sans `COALESCE` (non modifiable) → champ toujours envoyé. Paramètre optionnel de `update()` plutôt que lecture dans `_items` : même schéma que `typePiece`/`dateExpirationPiece` (non éditables, déjà transmis depuis `widget.locataire`), et `_items` peut être vide si l'écran est ouvert depuis le détail. Aucun champ de saisie ajouté. `Locataire.photoPieceUrl` existait déjà.
+- **Problèmes rencontrés** : aucun. `flutter analyze lib/features/locataires/` : 1 info préexistante (ligne 150, `create`). Tests `locataires` : 15/15.
+
+### T-052 : Paramètres — « Revoir la présentation » revient à Paramètres
+- **Date** : 2026-10-04
+- **Statut** : Terminée
+- **Type** : Correction
+- **Description** : l'onboarding poussé depuis Paramètres reçoit `onDone` qui dépile sa route : « Passer » ou la fin des pages ramène à Paramètres au lieu de remplacer la route par `LoginScreen`. L'appel d'`AuthGate` (`OnboardingScreen(onDone: _onOnboardingDone)`) est inchangé.
+- **Fichiers touchés** : `lib/features/parametres/screens/parametres_screen.dart`, `test/features/parametres/screens/parametres_screen_test.dart` (créé).
+- **Décisions & justifications** : `Navigator.pop` sur le contexte de la route d'onboarding (paramètre du `builder`) pour cibler explicitement cette route. `OnboardingScreen` non modifié (le paramètre `onDone` existait déjà). `_SettingsContainer` enveloppe désormais ses tuiles dans un `Material` transparent : sans cela, Flutter lève en debug l'assertion « ListTile background color or ink splashes may be invisible » (effets d'encre masqués par le fond du `Container`), ce qui faisait échouer tout widget test de l'écran.
+- **Problèmes rencontrés** : débordements de mise en page en test dus à la police Ahem (plus large que les vraies polices) → surface de test 720 dp de large.
+
+### T-053 : Paramètres — « Changer de mot de passe » ouvre `ChangePasswordScreen`
+- **Date** : 2026-10-04
+- **Statut** : Terminée
+- **Type** : Correction
+- **Description** : le SnackBar « Changement de mot de passe disponible en ligne » est remplacé par `Navigator.push` vers `ChangePasswordScreen` (même appel que depuis Profil). Le sous-titre inventé « Dernière modification il y a 3 mois » est retiré (aucune donnée backend).
+- **Fichiers touchés** : `lib/features/parametres/screens/parametres_screen.dart`, `test/features/parametres/screens/parametres_screen_test.dart`.
+- **Décisions & justifications** : réutilisation de l'écran existant, aucun contrat réseau touché.
+- **Problèmes rencontrés** : aucun.
+
+### T-054 : Persistance du thème et de la langue
+- **Date** : 2026-10-04
+- **Statut** : Terminée
+- **Type** : Correction
+- **Description** : `ThemeController` (clé `theme_is_dark`) et `LocaleController` (clé `app_language`, nom de l'enum) persistent leur valeur via `SharedPreferencesAsync`, sur le modèle d'`OnboardingStore`. `main()` appelle `load()` des deux contrôleurs avant `runApp`, donc le premier frame utilise déjà les valeurs sauvegardées.
+- **Fichiers touchés** : `lib/core/theme/theme_controller.dart`, `lib/core/i18n/locale_controller.dart`, `lib/main.dart`, `test/core/preferences_persistence_test.dart` (créé, 6 tests).
+- **Décisions & justifications** : `setDark`/`setLanguage` renvoient désormais `Future<void>` (compatibles avec `ValueChanged`/appels existants) ; l'écriture est « au mieux » (`try/catch`) car de nombreux widget tests appellent `ThemeController.instance.setDark` sans double de stockage, et un échec disque ne doit pas annuler un changement déjà appliqué. Valeur de langue inconnue sur disque ignorée. Constructeurs `@visibleForTesting forTesting()` pour simuler un redémarrage (nouvelle instance, même stockage `InMemorySharedPreferencesAsync`).
+- **Problèmes rencontrés** : `dart format` reformatait des lignes préexistantes de `main.dart` → fichier restauré puis modifications réappliquées à la main. `flutter analyze` : 17 infos préexistantes, aucune dans les fichiers touchés. `flutter test` : 400/400. Pas de commit.
