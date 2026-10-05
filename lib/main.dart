@@ -14,6 +14,7 @@ import 'features/documents/data/documents_repository.dart';
 import 'features/finances/data/finances_repository.dart';
 import 'features/locataires/data/locataires_repository.dart';
 import 'features/locataires/data/owners_repository.dart';
+import 'features/notifications/data/notifications_repository.dart';
 import 'features/onboarding/data/onboarding_store.dart';
 
 Future<void> main() async {
@@ -58,6 +59,9 @@ Future<void> main() async {
   );
   DocumentsRepository.initialize(
     DocumentsRepository(apiClient: apiClient),
+  );
+  NotificationsRepository.initialize(
+    NotificationsRepository(apiClient: apiClient),
   );
   // Non attendu : AuthGate (voir plus bas) affiche un écran de chargement
   // pendant que restoreSession() tourne, pas la peine de bloquer runApp.
