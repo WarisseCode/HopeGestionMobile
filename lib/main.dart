@@ -10,6 +10,7 @@ import 'core/theme/theme_controller.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/screens/auth_gate.dart';
 import 'features/biens/data/biens_repository.dart';
+import 'features/documents/data/baux_repository.dart';
 import 'features/documents/data/documents_repository.dart';
 import 'features/finances/data/finances_repository.dart';
 import 'features/locataires/data/locataires_repository.dart';
@@ -59,6 +60,9 @@ Future<void> main() async {
   );
   DocumentsRepository.initialize(
     DocumentsRepository(apiClient: apiClient),
+  );
+  BauxRepository.initialize(
+    BauxRepository(apiClient: apiClient),
   );
   NotificationsRepository.initialize(
     NotificationsRepository(apiClient: apiClient),
