@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../finances/models/finance_parsing.dart' show formatDateIso;
+import '../models/bail_detail.dart';
 import '../models/nouveau_bail.dart';
 import 'baux_results.dart';
 
-/// Création de baux (`POST /api/locations`, HopeGestionV2
+/// Création (`POST /api/locations`) et lecture d'un bail
+/// (`GET /api/locations/:id`, [getBail]), HopeGestionV2
 /// `backend/routes/leaseRoutes.ts`) — même pattern que `OwnersRepository`/
 /// `LocatairesRepository` (constructeur public + `instance`/`initialize`).
 ///
@@ -114,6 +116,46 @@ class BauxRepository extends ChangeNotifier {
         return CreerBailNetworkError(e.message);
       }
       return CreerBailFailure(e.message, e.type);
+    }
+  }
+
+  /// `GET /api/locations/:id` — fiche du bail et son échéancier en un seul
+  /// appel (`{location, echeancier}`, échéancier filtré par `scopeByOwner`).
+  /// Lecture ponctuelle : aucun état partagé, aucun `notifyListeners`.
+  ///
+  /// `GET /api/locations/:id/echeancier` n'est volontairement jamais appelé
+  /// ici : cette route n'applique pas `scopeByOwner`.
+  Future<BailDetailResult> getBail(int id) async {
+    try {
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/locations/$id',
+      );
+      final data = response.data;
+      final location = data?['location'];
+      final echeancier = data?['echeancier'];
+      if (location is! Map<String, dynamic>) {
+        throw const FormatException(
+          'Réponse de /locations/:id sans champ "location" exploitable.',
+        );
+      }
+      if (echeancier != null && echeancier is! List) {
+        throw const FormatException(
+          'Réponse de /locations/:id avec un champ "echeancier" inattendu.',
+        );
+      }
+      return BailDetailSuccess(
+        BailDetail.fromJson(location, (echeancier as List?) ?? const []),
+      );
+    } on ApiException catch (e) {
+      return switch (e.type) {
+        ApiExceptionType.notFound => BailDetailIntrouvable(e.message),
+        ApiExceptionType.forbidden => BailDetailAccesRefuse(e.message),
+        ApiExceptionType.network ||
+        ApiExceptionType.timeout => BailDetailNetworkError(e.message),
+        _ => BailDetailFailure(e.message, e.type),
+      };
+    } on FormatException catch (e) {
+      return BailDetailFailure(e.message, ApiExceptionType.unknown);
     }
   }
 }

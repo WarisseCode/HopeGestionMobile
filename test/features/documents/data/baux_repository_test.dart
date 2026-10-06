@@ -186,6 +186,164 @@ void main() {
     });
   });
 
+  group('getBail (GET /locations/:id)', () {
+    Map<String, dynamic> location() => {
+      'id': 42,
+      'reference_bail': 'BAIL-2026-0042',
+      'statut': 'actif',
+      'type_paiement': 'classique',
+      'loyer_actuel': '185000.00',
+      'loyer_mensuel': '185000.00',
+      'caution': '370000.00',
+      'avance': 2,
+      'charges_mensuelles': '10000.00',
+      'jour_echeance': 5,
+      'date_debut': '2026-10-05',
+      'date_fin': '2027-10-05',
+      'locataire_nom': 'Diop',
+      'locataire_prenoms': 'Yacine',
+      'locataire_telephone': '+22990000001',
+      'locataire_email': 'yacine@example.com',
+      'ref_lot': 'A1',
+      'lot_type': 'appartement',
+      'immeuble_nom': 'Résidence Palmiers',
+      'immeuble_adresse': 'Rue 12, Cotonou',
+      'proprietaire_nom': 'Mamadou Camara',
+    };
+
+    test('succès : tous les champs parsés, échéancier vide', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'location': location(),
+          'echeancier': <dynamic>[],
+        }, 200);
+      });
+
+      final result = await repo.getBail(42) as BailDetailSuccess;
+
+      expect(seen!.path, '/locations/42');
+      expect(seen!.method, 'GET');
+      final bail = result.bail;
+      expect(bail.id, 42);
+      expect(bail.referenceBail, 'BAIL-2026-0042');
+      expect(bail.statut, 'actif');
+      expect(bail.typePaiement, 'classique');
+      expect(bail.loyerMensuel, 185000);
+      expect(bail.caution, 370000);
+      expect(bail.avanceMois, 2);
+      expect(bail.chargesMensuelles, 10000);
+      expect(bail.jourEcheance, 5);
+      expect(bail.dateDebut, DateTime(2026, 10, 5));
+      expect(bail.dateFin, DateTime(2027, 10, 5));
+      expect(bail.locataireNomComplet, 'Diop Yacine');
+      expect(bail.locataireTelephone, '+22990000001');
+      expect(bail.locataireEmail, 'yacine@example.com');
+      expect(bail.refLot, 'A1');
+      expect(bail.lotType, 'appartement');
+      expect(bail.immeubleNom, 'Résidence Palmiers');
+      expect(bail.immeubleAdresse, 'Rue 12, Cotonou');
+      expect(bail.proprietaireNom, 'Mamadou Camara');
+      expect(bail.echeancier, isEmpty);
+    });
+
+    test('succès : échéancier non vide, trié par date', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'location': {...location(), 'avance': '3.00'},
+          'echeancier': [
+            {
+              'id': 2,
+              'lease_id': 42,
+              'total_amount': '185000.00',
+              'amount_paid': '0.00',
+              'due_date': '2026-12-05',
+              'status': 'pending',
+            },
+            {
+              'id': 1,
+              'lease_id': 42,
+              'total_amount': '185000.00',
+              'amount_paid': '185000.00',
+              'due_date': '2026-11-05',
+              'status': 'paid',
+            },
+          ],
+        }, 200),
+      );
+
+      final bail = (await repo.getBail(42) as BailDetailSuccess).bail;
+
+      expect(bail.avanceMois, 3); // NUMERIC en chaîne toléré
+      expect(bail.echeancier.map((e) => e.id), [1, 2]);
+      expect(bail.echeancier.first.estSoldee, isTrue);
+      expect(bail.echeancier.last.leaseId, 42);
+    });
+
+    test('échéancier absent : liste vide, pas une erreur', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'location': location()}, 200),
+      );
+
+      final bail = (await repo.getBail(42) as BailDetailSuccess).bail;
+      expect(bail.echeancier, isEmpty);
+    });
+
+    test('réponse sans location : échec de format', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'echeancier': <dynamic>[]}, 200),
+      );
+
+      final result = await repo.getBail(42) as BailDetailFailure;
+      expect(result.type, ApiExceptionType.unknown);
+    });
+
+    test('404 : introuvable (bail inexistant ou hors périmètre)', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'message': 'Contrat non trouvé ou accès refusé',
+        }, 404),
+      );
+
+      final result = await repo.getBail(42);
+      expect(result, isA<BailDetailIntrouvable>());
+    });
+
+    test('403 : accès refusé', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Accès refusé'}, 403),
+      );
+
+      expect(await repo.getBail(42), isA<BailDetailAccesRefuse>());
+    });
+
+    test('réseau : erreur réseau', () async {
+      final repo = _repo((options) async {
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        );
+      });
+
+      expect(await repo.getBail(42), isA<BailDetailNetworkError>());
+    });
+
+    test('n\'appelle jamais /locations/:id/echeancier', () async {
+      final paths = <String>[];
+      final repo = _repo((options) async {
+        paths.add(options.path);
+        return jsonResponse({
+          'location': location(),
+          'echeancier': <dynamic>[],
+        }, 200);
+      });
+
+      await repo.getBail(42);
+      expect(paths, ['/locations/42']);
+    });
+  });
+
   group('calculs (fonctions pures)', () {
     test('date_fin = date_debut + durée en mois', () {
       expect(calculerDateFinBail(DateTime(2026, 10, 5), 12), DateTime(2027, 10, 5));

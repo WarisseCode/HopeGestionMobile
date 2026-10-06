@@ -16,6 +16,7 @@ import '../../locataires/models/locataire.dart';
 import '../data/baux_repository.dart';
 import '../data/baux_results.dart';
 import '../models/nouveau_bail.dart';
+import 'bail_detail_screen.dart';
 
 /// Étape courante du parcours. Le lot vient en premier : c'est lui qui
 /// détermine le propriétaire (`owner_id`, obligatoire à l'envoi) et donc la
@@ -429,6 +430,16 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
           Navigator.of(sheetContext).pop();
           // `true` : signale un changement à l'écran d'origine.
           Navigator.of(context).pop(true);
+        },
+        onVoirBail: () {
+          Navigator.of(sheetContext).pop();
+          // La fiche remplace le formulaire (le retour ne ramène pas sur un
+          // parcours déjà envoyé) ; `result: true` signale toujours le
+          // changement à l'écran d'origine, comme « Terminer ».
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => BailDetailScreen(bailId: bail.id)),
+            result: true,
+          );
         },
       ),
     );
@@ -913,10 +924,15 @@ class _RecapRow extends StatelessWidget {
 }
 
 class _SuccesSheet extends StatelessWidget {
-  const _SuccesSheet({required this.reference, required this.onTerminer});
+  const _SuccesSheet({
+    required this.reference,
+    required this.onTerminer,
+    required this.onVoirBail,
+  });
 
   final String reference;
   final VoidCallback onTerminer;
+  final VoidCallback onVoirBail;
 
   @override
   Widget build(BuildContext context) {
@@ -941,6 +957,10 @@ class _SuccesSheet extends StatelessWidget {
             style: AppTypography.bodySmall(color: AppColors.mutedForeground),
           ),
           const SizedBox(height: 24),
+          // Empilés plutôt que côte à côte : à 390 px, deux AppButton en
+          // ligne débordent (libellés non flexibles).
+          SizedBox(width: double.infinity, child: AppButton.primary(label: 'Voir le bail', onPressed: onVoirBail)),
+          const SizedBox(height: 10),
           SizedBox(width: double.infinity, child: AppButton.secondary(label: 'Terminer', onPressed: onTerminer)),
         ],
       ),

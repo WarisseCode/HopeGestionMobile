@@ -1,4 +1,5 @@
 import '../../../core/network/api_exception.dart';
+import '../models/bail_detail.dart';
 import '../models/nouveau_bail.dart';
 
 /// Résultats de `BauxRepository.creerBail` (`POST /api/locations`) — un cas
@@ -46,6 +47,43 @@ class CreerBailNetworkError extends CreerBailResult {
 /// Tout autre échec (5xx, 401, réponse illisible…).
 class CreerBailFailure extends CreerBailResult {
   const CreerBailFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}
+
+/// Résultats de `BauxRepository.getBail` (`GET /api/locations/:id`).
+sealed class BailDetailResult {
+  const BailDetailResult();
+}
+
+class BailDetailSuccess extends BailDetailResult {
+  const BailDetailSuccess(this.bail);
+  final BailDetail bail;
+}
+
+/// 404 « Contrat non trouvé ou accès refusé » : bail inexistant **ou** hors
+/// périmètre (propriétaire non rattaché) — le serveur ne distingue pas les
+/// deux. Relancer ne change rien.
+class BailDetailIntrouvable extends BailDetailResult {
+  const BailDetailIntrouvable(this.message);
+  final String message;
+}
+
+/// 403 : permission de module absente. Relancer ne change rien.
+class BailDetailAccesRefuse extends BailDetailResult {
+  const BailDetailAccesRefuse(this.message);
+  final String message;
+}
+
+/// Réseau ou délai dépassé : relance possible (lecture idempotente).
+class BailDetailNetworkError extends BailDetailResult {
+  const BailDetailNetworkError(this.message);
+  final String message;
+}
+
+/// Tout autre échec (5xx, 401, réponse illisible…).
+class BailDetailFailure extends BailDetailResult {
+  const BailDetailFailure(this.message, this.type);
   final String message;
   final ApiExceptionType type;
 }

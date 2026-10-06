@@ -11,6 +11,7 @@ import 'package:hope_gestion_mobile/core/theme/app_theme.dart';
 import 'package:hope_gestion_mobile/core/theme/theme_controller.dart';
 import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
 import 'package:hope_gestion_mobile/features/documents/data/baux_repository.dart';
+import 'package:hope_gestion_mobile/features/documents/screens/bail_detail_screen.dart';
 import 'package:hope_gestion_mobile/features/documents/screens/nouveau_contrat_screen.dart';
 import 'package:hope_gestion_mobile/features/locataires/data/locataires_repository.dart';
 
@@ -92,6 +93,17 @@ class _Serveur {
       final type = creerExceptionType;
       if (type != null) throw DioException(requestOptions: options, type: type);
       return jsonResponse(creerResponse, creerStatusCode);
+    }
+    if (options.path == '/locations/42' && options.method == 'GET') {
+      return jsonResponse({
+        'location': {
+          'id': 42,
+          'reference_bail': 'BAIL-2026-0042',
+          'statut': 'actif',
+          'loyer_mensuel': '185000.00',
+        },
+        'echeancier': <dynamic>[],
+      }, 200);
     }
     throw UnimplementedError('${options.method} ${options.path}');
   }
@@ -277,6 +289,24 @@ void main() {
       expect(envoye['jour_echeance'], 5);
       expect(envoye['type_contrat'], 'location');
       expect(envoye['type_paiement'], 'classique');
+    });
+
+    testWidgets('« Voir le bail » ouvre la fiche du bail créé (id 42)', (tester) async {
+      final serveur = await _versLeFormulaire(tester);
+      await _ouvrirRecap(tester);
+      await _confirmer(tester);
+
+      await tester.pumpAndSettle(); // fin des animations de feuilles
+      expect(find.text('Terminer'), findsOneWidget);
+      await tester.tap(find.text('Voir le bail'));
+      await _settle(tester);
+      await tester.pumpAndSettle();
+
+      final fiche = tester.widget<BailDetailScreen>(find.byType(BailDetailScreen));
+      expect(fiche.bailId, 42);
+      expect(find.byType(NouveauContratScreen), findsNothing); // remplacé
+      expect(serveur.appelsSur('/locations/42', 'GET'), 1);
+      expect(find.text('BAIL-2026-0042'), findsOneWidget);
     });
 
     testWidgets('double appui = une seule requête', (tester) async {

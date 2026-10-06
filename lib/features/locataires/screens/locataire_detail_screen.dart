@@ -3,6 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/design_system.dart';
+import '../../documents/screens/bail_detail_screen.dart';
 import '../../finances/screens/encaisser_screen.dart';
 import '../data/locataire_results.dart';
 import '../data/locataires_repository.dart';
@@ -514,10 +515,19 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
             value: _baux[i].loyerActuel != null
                 ? '${_formatMontant(_baux[i].loyerActuel!)} · ${_baux[i].statut}'
                 : _baux[i].statut,
+            onTap: () => _ouvrirBail(_baux[i].id),
           ),
           if (i < _baux.length - 1) Divider(color: AppColors.border, height: 1),
         ],
       ],
+    );
+  }
+
+  /// Fiche du bail en lecture seule : rien n'y est modifié, donc pas de
+  /// rechargement au retour.
+  void _ouvrirBail(int bailId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => BailDetailScreen(bailId: bailId)),
     );
   }
 
@@ -690,11 +700,14 @@ class _DetailLine extends StatelessWidget {
   final String label;
   final String value;
 
-  const _DetailLine({required this.label, required this.value});
+  /// Ligne cliquable (chevron affiché) si renseigné.
+  final VoidCallback? onTap;
+
+  const _DetailLine({required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final ligne = Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -710,9 +723,19 @@ class _DetailLine extends StatelessWidget {
             style: AppTypography.bodySmall(color: AppColors.foreground)
                 .copyWith(fontWeight: FontWeight.w600),
           ),
+          if (onTap != null) ...[
+            const SizedBox(width: 6),
+            Icon(
+              LucideIcons.chevron_right,
+              size: 16,
+              color: AppColors.mutedForeground,
+            ),
+          ],
         ],
       ),
     );
+    if (onTap == null) return ligne;
+    return InkWell(onTap: onTap, child: ligne);
   }
 }
 
