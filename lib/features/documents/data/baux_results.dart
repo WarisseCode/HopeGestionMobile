@@ -125,3 +125,51 @@ class BailActifFailure extends BailActifResult {
   final String message;
   final ApiExceptionType type;
 }
+
+/// Résultats communs aux trois actions sur un bail existant :
+/// `BauxRepository.resilierBail` (`POST /locations/:id/resilier`),
+/// `renouvelerBail` (`POST /locations/:id/renouveler`) et `signerBail`
+/// (`POST /locations/:id/sign`).
+///
+/// Un seul type scellé plutôt qu'un par action : les trois routes ont
+/// exactement les mêmes catégories d'issue et la même réaction attendue
+/// côté écran (aucune donnée de réponse n'est exploitée, la fiche est
+/// rechargée par `getBail` après succès).
+sealed class ActionBailResult {
+  const ActionBailResult();
+}
+
+/// 2xx : action appliquée côté serveur.
+class ActionBailSuccess extends ActionBailResult {
+  const ActionBailSuccess();
+}
+
+/// 400 (express-validator ou contrôle manuel du handler). [message] est
+/// celui du serveur, prêt à afficher.
+class ActionBailValidationFailed extends ActionBailResult {
+  const ActionBailValidationFailed(this.message, this.fieldErrors);
+  final String message;
+  final Map<String, String> fieldErrors;
+}
+
+/// 403 : permission `locataires:write` absente.
+class ActionBailPermissionRefusee extends ActionBailResult {
+  const ActionBailPermissionRefusee(this.message);
+  final String message;
+}
+
+/// Réseau ou délai dépassé : l'action a pu être appliquée malgré l'absence
+/// de réponse. Jamais de nouvel envoi automatique (routes non
+/// transactionnelles).
+class ActionBailNetworkError extends ActionBailResult {
+  const ActionBailNetworkError(this.message);
+  final String message;
+}
+
+/// Tout autre échec (5xx, 404, 401…). Un 5xx peut survenir après un
+/// premier UPDATE réussi (routes non transactionnelles).
+class ActionBailFailure extends ActionBailResult {
+  const ActionBailFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}

@@ -42,8 +42,8 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
     });
   }
 
-  /// La fiche bail est en lecture seule, mais l'utilisateur a pu naviguer
-  /// ailleurs depuis : rechargement prudent au retour.
+  /// La fiche bail permet de résilier, renouveler ou signer (une résiliation
+  /// libère le lot) : rechargement systématique au retour.
   Future<void> _ouvrirBail(int bailId) async {
     await Navigator.of(
       context,

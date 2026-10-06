@@ -48,6 +48,10 @@ dependencies:
   # Connexion Google native (idToken envoyé à POST /auth/mobile/google). API
   # v7 : GoogleSignIn.instance.initialize(...) puis authenticate().
   google_sign_in: ^7.2.0
+  # Pad de signature du bail (POST /locations/:id/sign) : canvas pur Dart,
+  # aucun code natif, export PNG direct (toPngBytes). Tire flutter_svg
+  # (pur Dart également), utilisé par son export SVG que l'app n'appelle pas.
+  signature: ^6.4.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

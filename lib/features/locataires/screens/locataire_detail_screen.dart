@@ -523,12 +523,15 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
     );
   }
 
-  /// Fiche du bail en lecture seule : rien n'y est modifié, donc pas de
-  /// rechargement au retour.
-  void _ouvrirBail(int bailId) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BailDetailScreen(bailId: bailId)),
-    );
+  /// La fiche du bail permet de résilier, renouveler ou signer : l'onglet
+  /// « Contrat & Bail » peut être périmé au retour, d'où un rechargement
+  /// systématique (lecture idempotente) — même pattern que `LotDetailScreen`.
+  Future<void> _ouvrirBail(int bailId) async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => BailDetailScreen(bailId: bailId)));
+    if (!mounted) return;
+    await _load();
   }
 
   Widget _buildPaiementsTab() {

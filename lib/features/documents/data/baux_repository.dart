@@ -8,8 +8,9 @@ import '../models/bail_resume.dart';
 import '../models/nouveau_bail.dart';
 import 'baux_results.dart';
 
-/// Création (`POST /api/locations`) et lecture d'un bail
-/// (`GET /api/locations/:id`, [getBail]), HopeGestionV2
+/// Création (`POST /api/locations`), lecture (`GET /api/locations/:id`,
+/// [getBail]) et actions sur un bail existant ([resilierBail],
+/// [renouvelerBail], [signerBail]), HopeGestionV2
 /// `backend/routes/leaseRoutes.ts`) — même pattern que `OwnersRepository`/
 /// `LocatairesRepository` (constructeur public + `instance`/`initialize`).
 ///
@@ -201,6 +202,83 @@ class BauxRepository extends ChangeNotifier {
       };
     } on FormatException catch (e) {
       return BailActifFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
+
+  /// Longueur maximale du motif de résiliation (validation serveur).
+  static const motifResiliationMaxLength = 500;
+
+  /// Préfixe exigé par `POST /locations/:id/sign` pour `signatureImage`.
+  static const prefixeSignaturePng = 'data:image/png;base64,';
+
+  /// `POST /api/locations/:id/resilier` — bail → `resilie`, lot →
+  /// `disponible` (deux UPDATE séparés, non transactionnels).
+  ///
+  /// [motif] vide ou absent : champ omis (le serveur applique
+  /// « Résiliation »). [dateResiliation] absente : champ omis (le serveur
+  /// applique la date du jour).
+  Future<ActionBailResult> resilierBail(
+    int id, {
+    String? motif,
+    DateTime? dateResiliation,
+  }) {
+    final motifNettoye = motif?.trim() ?? '';
+    return _action('/locations/$id/resilier', {
+      if (motifNettoye.isNotEmpty) 'motif': motifNettoye,
+      if (dateResiliation != null)
+        'date_resiliation': formatDateIso(dateResiliation),
+    });
+  }
+
+  /// `POST /api/locations/:id/renouveler` — bail → `actif`, lot inchangé.
+  ///
+  /// `nouvelle_date_fin` est **toujours** envoyée : le serveur écrase
+  /// `date_fin` à NULL si le champ est omis (pas de COALESCE côté backend).
+  /// [nouveauLoyer] absent : champ omis (loyer inchangé).
+  Future<ActionBailResult> renouvelerBail(
+    int id, {
+    required DateTime nouvelleDateFin,
+    double? nouveauLoyer,
+  }) {
+    return _action('/locations/$id/renouveler', {
+      'nouvelle_date_fin': formatDateIso(nouvelleDateFin),
+      'nouveau_loyer': ?nouveauLoyer,
+    });
+  }
+
+  /// `POST /api/locations/:id/sign` — bail → `signe`, lot inchangé.
+  ///
+  /// [signatureImageBase64] : PNG encodé en base64 **sans** préfixe ; le
+  /// préfixe [prefixeSignaturePng] attendu par le serveur est ajouté ici.
+  Future<ActionBailResult> signerBail(
+    int id, {
+    required String signatureImageBase64,
+  }) {
+    return _action('/locations/$id/sign', {
+      'signatureImage': '$prefixeSignaturePng$signatureImageBase64',
+    });
+  }
+
+  /// Envoi unique, jamais relancé. Aucun état partagé modifié (pas de
+  /// `notifyListeners`, comme [getBail]) : l'écran recharge la fiche.
+  Future<ActionBailResult> _action(
+    String path,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _apiClient.request<dynamic>(path, method: 'POST', data: data);
+      return const ActionBailSuccess();
+    } on ApiException catch (e) {
+      return switch (e.type) {
+        ApiExceptionType.validation => ActionBailValidationFailed(
+          e.message,
+          e.fieldErrors,
+        ),
+        ApiExceptionType.forbidden => ActionBailPermissionRefusee(e.message),
+        ApiExceptionType.network ||
+        ApiExceptionType.timeout => ActionBailNetworkError(e.message),
+        _ => ActionBailFailure(e.message, e.type),
+      };
     }
   }
 }

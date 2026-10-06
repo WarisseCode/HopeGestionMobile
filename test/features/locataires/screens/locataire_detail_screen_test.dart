@@ -111,4 +111,83 @@ void main() {
       expect(find.text('Résilié'), findsOneWidget);
     },
   );
+
+  testWidgets('retour de la fiche du bail : baux du locataire rechargés', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    // Statut renvoyé pour le bail 10 ; modifié « côté serveur » pendant
+    // que la fiche du bail est ouverte (ex. résiliation).
+    var statutBail = 'actif';
+    final requetes = <String>[];
+    Future<ResponseBody> repondre(RequestOptions options) async {
+      requetes.add(options.path);
+      switch (options.path) {
+        case '/locataires/1':
+          return jsonResponse({
+            'locataire': {
+              'id': 1,
+              'nom': 'Diop',
+              'prenoms': 'Yacine',
+              'telephone_principal': '+22990000001',
+              'type': 'Locataire',
+              'statut': 'Actif',
+            },
+            'baux': [
+              {
+                'id': 10,
+                'statut': statutBail,
+                'building_name': 'Résidence Palmiers',
+                'ref_lot': 'A1',
+                'loyer_actuel': '185000',
+              },
+            ],
+            'paiements': <dynamic>[],
+          }, 200);
+        case '/locations/10':
+          return jsonResponse({
+            'location': {
+              'id': 10,
+              'reference_bail': 'BAIL-2026-00010',
+              'statut': statutBail,
+            },
+            'echeancier': <dynamic>[],
+          }, 200);
+      }
+      throw UnimplementedError(options.path);
+    }
+
+    final apiClient = ApiClient(
+      tokenStorage: TokenStorage(),
+      dio: Dio(BaseOptions(baseUrl: 'https://api.test'))
+        ..httpClientAdapter = FakeAdapter(repondre),
+    );
+    LocatairesRepository.initialize(LocatairesRepository(apiClient: apiClient));
+    BauxRepository.initialize(BauxRepository(apiClient: apiClient));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: LocataireDetailScreen(locataireId: 1)),
+    );
+    await _settle(tester);
+
+    expect(find.text('185 000 F · actif'), findsOneWidget);
+    expect(requetes.where((p) => p == '/locataires/1'), hasLength(1));
+
+    await tester.tap(find.text('A1 — Résidence Palmiers'));
+    await _settle(tester);
+    await tester.pumpAndSettle();
+    expect(find.byType(BailDetailScreen), findsOneWidget);
+
+    statutBail = 'resilie';
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await _settle(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BailDetailScreen), findsNothing);
+    expect(requetes.where((p) => p == '/locataires/1'), hasLength(2));
+    expect(find.text('185 000 F · resilie'), findsOneWidget);
+  });
 }

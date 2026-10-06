@@ -1,17 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../core/design_system.dart';
+import '../../biens/data/biens_repository.dart';
 import '../../finances/models/echeance.dart';
 import '../../finances/models/finance_format.dart';
 import '../data/baux_repository.dart';
 import '../data/baux_results.dart';
 import '../models/bail_detail.dart';
+import 'bail_actions.dart';
+import 'signer_bail_screen.dart';
 
-/// Fiche d'un bail en **lecture seule** — `GET /api/locations/:id`
-/// (bail + échéancier en un seul appel, échéancier filtré par
-/// `scopeByOwner` côté serveur). Ni résiliation, ni renouvellement, ni
-/// signature ici (hors périmètre).
+/// Fiche d'un bail — `GET /api/locations/:id` (bail + échéancier en un seul
+/// appel, échéancier filtré par `scopeByOwner` côté serveur), avec les
+/// actions contextuelles selon `statut` :
+/// - `actif` : Résilier, Renouveler, Signer ;
+/// - `signe` : Résilier, Renouveler (pas de re-signature) ;
+/// - `resilie` : aucune action, mention « Bail résilié » ;
+/// - autres statuts : aucune action.
+///
+/// Après une action réussie ou à l'issue incertaine, la fiche est
+/// rechargée (`getBail`).
 class BailDetailScreen extends StatefulWidget {
   const BailDetailScreen({super.key, required this.bailId, this.maintenant});
 
@@ -100,6 +111,56 @@ class _BailDetailScreenState extends State<BailDetailScreen> {
           retryable: true,
         );
     }
+  }
+
+  /// Gère la fermeture d'une feuille/écran d'action : rien si annulé sans
+  /// envoi ambigu ; sinon rechargement de la fiche (et des lots après une
+  /// résiliation, le lot redevenant `disponible`), confirmation si succès.
+  Future<void> _apresAction(
+    IssueActionBail? issue, {
+    required String confirmation,
+    bool rechargerLots = false,
+  }) async {
+    if (issue == null || !mounted) return;
+    if (rechargerLots) unawaited(BiensRepository.instance.listLots());
+    if (issue == IssueActionBail.succes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(confirmation),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    await _load(rafraichir: true);
+  }
+
+  Future<void> _resilier(BailDetail bail) async {
+    final issue = await ouvrirResiliationBail(
+      context,
+      bail,
+      maintenant: widget.maintenant,
+    );
+    await _apresAction(
+      issue,
+      confirmation: 'Bail résilié.',
+      rechargerLots: true,
+    );
+  }
+
+  Future<void> _renouveler(BailDetail bail) async {
+    final issue = await ouvrirRenouvellementBail(
+      context,
+      bail,
+      maintenant: widget.maintenant,
+    );
+    await _apresAction(issue, confirmation: 'Bail renouvelé.');
+  }
+
+  Future<void> _signer(BailDetail bail) async {
+    final issue = await Navigator.of(context).push<IssueActionBail>(
+      MaterialPageRoute(builder: (_) => SignerBailScreen(bail: bail)),
+    );
+    await _apresAction(issue, confirmation: 'Bail signé.');
   }
 
   void _afficherErreur(
@@ -250,6 +311,7 @@ class _BailDetailScreenState extends State<BailDetailScreen> {
                         _EcheanceLigne(echeance: e, maintenant: maintenant),
                         const SizedBox(height: 10),
                       ],
+                    ..._actions(bail),
                   ],
                 ),
               ),
@@ -322,6 +384,68 @@ class _BailDetailScreenState extends State<BailDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// Section d'actions en bas de fiche, selon `bail.statut` (voir la doc de
+  /// [BailDetailScreen]).
+  List<Widget> _actions(BailDetail bail) {
+    if (bail.statut == 'resilie') {
+      return [
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.info, size: 14, color: AppColors.mutedForeground),
+            const SizedBox(width: 6),
+            Text(
+              'Bail résilié',
+              style: AppTypography.caption(color: AppColors.mutedForeground),
+            ),
+          ],
+        ),
+      ];
+    }
+    final enCours = bail.statut == 'actif' || bail.statut == 'signe';
+    if (!enCours) return const [];
+    return [
+      const SizedBox(height: 20),
+      Text(
+        'ACTIONS',
+        style: AppTypography.labelUppercase(color: AppColors.mutedForeground),
+      ),
+      const SizedBox(height: 10),
+      if (bail.statut == 'actif') ...[
+        AppButton.primary(
+          label: 'Signer',
+          icon: Icon(
+            LucideIcons.signature,
+            size: 18,
+            color: AppColors.primaryForeground,
+          ),
+          onPressed: () => _signer(bail),
+        ),
+        const SizedBox(height: 10),
+      ],
+      AppButton.secondary(
+        label: 'Renouveler',
+        icon: Icon(
+          LucideIcons.refresh_cw,
+          size: 18,
+          color: AppColors.foreground,
+        ),
+        onPressed: () => _renouveler(bail),
+      ),
+      const SizedBox(height: 10),
+      AppButton.danger(
+        label: 'Résilier',
+        icon: Icon(
+          LucideIcons.file_x,
+          size: 18,
+          color: AppColors.primaryForeground,
+        ),
+        onPressed: () => _resilier(bail),
+      ),
+    ];
   }
 
   /// Échéancier vide : situation normale (un bail `classique` n'a aucune
@@ -461,7 +585,7 @@ class _Carte extends StatelessWidget {
 /// Même présentation que `_EcheanceRow` d'`EncaisserScreen` (mêmes libellés
 /// et couleurs de badge), plus l'état « Payée » que cet écran n'affiche
 /// jamais (il ne liste que les échéances à encaisser). Non cliquable :
-/// fiche en lecture seule.
+/// l'échéancier est affiché en lecture seule.
 class _EcheanceLigne extends StatelessWidget {
   const _EcheanceLigne({required this.echeance, required this.maintenant});
 

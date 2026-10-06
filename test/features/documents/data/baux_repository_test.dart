@@ -484,6 +484,187 @@ void main() {
     });
   });
 
+  // Les trois actions partagent le même mapping d'erreurs : testé une fois
+  // par action pour garantir le câblage de chaque route.
+  final actions = <String, Future<ActionBailResult> Function(BauxRepository)>{
+    'resilierBail': (r) => r.resilierBail(42),
+    'renouvelerBail': (r) =>
+        r.renouvelerBail(42, nouvelleDateFin: DateTime(2028, 10, 5)),
+    'signerBail': (r) => r.signerBail(42, signatureImageBase64: 'iVBORw0K'),
+  };
+
+  group('resilierBail (POST /locations/:id/resilier)', () {
+    test('payload exact : motif nettoyé et date ISO', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({'message': 'Bail résilié avec succès'}, 200);
+      });
+
+      final result = await repo.resilierBail(
+        42,
+        motif: '  Départ du locataire  ',
+        dateResiliation: DateTime(2026, 10, 6),
+      );
+
+      expect(result, isA<ActionBailSuccess>());
+      expect(seen!.path, '/locations/42/resilier');
+      expect(seen!.method, 'POST');
+      expect(seen!.data, {
+        'motif': 'Départ du locataire',
+        'date_resiliation': '2026-10-06',
+      });
+    });
+
+    test('motif vide et date absente : champs omis (défauts serveur)', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({'message': 'Bail résilié avec succès'}, 200);
+      });
+
+      await repo.resilierBail(42, motif: '   ');
+
+      expect(seen!.data, <String, dynamic>{});
+    });
+  });
+
+  group('renouvelerBail (POST /locations/:id/renouveler)', () {
+    test('payload exact : nouvelle_date_fin et nouveau_loyer', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'message': 'Bail renouvelé',
+          'location': {'id': 42},
+        }, 200);
+      });
+
+      final result = await repo.renouvelerBail(
+        42,
+        nouvelleDateFin: DateTime(2028, 10, 5),
+        nouveauLoyer: 200000,
+      );
+
+      expect(result, isA<ActionBailSuccess>());
+      expect(seen!.path, '/locations/42/renouveler');
+      expect(seen!.method, 'POST');
+      expect(seen!.data, {
+        'nouvelle_date_fin': '2028-10-05',
+        'nouveau_loyer': 200000.0,
+      });
+    });
+
+    test('sans loyer : nouvelle_date_fin TOUJOURS envoyée (bug NULL serveur)', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({'message': 'ok'}, 200);
+      });
+
+      await repo.renouvelerBail(42, nouvelleDateFin: DateTime(2028, 1, 31));
+
+      expect(seen!.data, {'nouvelle_date_fin': '2028-01-31'});
+    });
+  });
+
+  group('signerBail (POST /locations/:id/sign)', () {
+    test('payload exact : signatureImage préfixée data:image/png;base64,', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'message': 'Contrat signé',
+          'signatureUrl': '/uploads/signatures/42.png',
+        }, 200);
+      });
+
+      final result = await repo.signerBail(
+        42,
+        signatureImageBase64: 'iVBORw0KGgo=',
+      );
+
+      expect(result, isA<ActionBailSuccess>());
+      expect(seen!.path, '/locations/42/sign');
+      expect(seen!.method, 'POST');
+      expect(seen!.data, {
+        'signatureImage': 'data:image/png;base64,iVBORw0KGgo=',
+      });
+    });
+  });
+
+  for (final MapEntry(key: nom, value: appeler) in actions.entries) {
+    group('$nom : erreurs', () {
+      test('403 : permission refusée', () async {
+        final repo = _repo(
+          (options) async => jsonResponse({'message': 'Accès refusé'}, 403),
+        );
+
+        final result = await appeler(repo);
+        expect(result, isA<ActionBailPermissionRefusee>());
+        expect((result as ActionBailPermissionRefusee).message, 'Accès refusé');
+      });
+
+      test('400 : validation, message du serveur', () async {
+        final repo = _repo(
+          (options) async => jsonResponse({
+            'errors': [
+              {'path': 'motif', 'msg': 'Motif trop long'},
+            ],
+          }, 400),
+        );
+
+        final result = await appeler(repo) as ActionBailValidationFailed;
+        expect(result.message, 'Motif trop long');
+        expect(result.fieldErrors['motif'], isNotNull);
+      });
+
+      test('réseau : erreur réseau, une seule requête (pas de relance)', () async {
+        var appels = 0;
+        final repo = _repo((options) async {
+          appels++;
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+          );
+        });
+
+        expect(await appeler(repo), isA<ActionBailNetworkError>());
+        expect(appels, 1);
+      });
+
+      test('timeout : erreur réseau', () async {
+        final repo = _repo((options) async {
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.receiveTimeout,
+          );
+        });
+
+        expect(await appeler(repo), isA<ActionBailNetworkError>());
+      });
+
+      test('500 : échec générique de type serveur', () async {
+        final repo = _repo(
+          (options) async => jsonResponse({'message': 'Erreur serveur'}, 500),
+        );
+
+        final result = await appeler(repo) as ActionBailFailure;
+        expect(result.type, ApiExceptionType.server);
+      });
+
+      test('404 : échec générique (bail hors périmètre)', () async {
+        final repo = _repo(
+          (options) async =>
+              jsonResponse({'message': 'Contrat non trouvé'}, 404),
+        );
+
+        final result = await appeler(repo) as ActionBailFailure;
+        expect(result.type, ApiExceptionType.notFound);
+      });
+    });
+  }
+
   group('calculs (fonctions pures)', () {
     test('date_fin = date_debut + durée en mois', () {
       expect(calculerDateFinBail(DateTime(2026, 10, 5), 12), DateTime(2027, 10, 5));
