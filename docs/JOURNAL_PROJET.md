@@ -1045,3 +1045,12 @@ session/projet que le chantier est piloté.
 - **Décisions & justifications** : simple ajout au texte de la bannière existante, sur le même ton informatif, sans nouveau widget ni changement de comportement. `FinanceService.generateMonthlySchedules` ne traite que les baux `statut='actif'` ; un bail passé à `signe` en sort.
 - **Problèmes rencontrés** : aucun test ne vérifiait le texte exact de la bannière, aucun test n'a donc été modifié. Codex n'est pas disponible dans cet environnement. `flutter analyze` sur le fichier touché : aucun problème. `flutter test` : 564/564. Pas de commit.
 - **Remplace / modifie** : T-062 (l'effet de bord « non signalé dans l'interface » est désormais signalé).
+
+### T-064 : Nom affiché de l'application — « HGI Mobile »
+- **Date** : 2026-10-06
+- **Statut** : Terminée
+- **Type** : Config
+- **Description** : le nom système de l'application devient « HGI Mobile » sur toutes les plateformes configurées. Android : `android:label`. iOS : `CFBundleDisplayName` (« Hope Gestion Mobile ») et `CFBundleName`. Windows : titre de fenêtre, `FileDescription` et `ProductName`. Web : `<title>`, `apple-mobile-web-app-title`, `name` et `short_name` du manifeste.
+- **Fichiers touchés** : `android/app/src/main/AndroidManifest.xml`, `ios/Runner/Info.plist`, `windows/runner/main.cpp`, `windows/runner/Runner.rc`, `web/index.html`, `web/manifest.json`, `docs/JOURNAL_PROJET.md`.
+- **Décisions & justifications** : seuls les libellés d'affichage changent. Le nom du paquet Dart (`hope_gestion_mobile`), l'`applicationId`/`namespace` Android, le bundle identifier iOS (`com.hopegestion.hopeGestionMobile`) et le nom du binaire Windows (`BINARY_NAME`, `InternalName`, `OriginalFilename`) restent inchangés, pour préserver la continuité Play Store/App Store et la configuration Google Sign-In (SHA-1 + nom de paquet). Les textes affichés dans l'application sont hors périmètre.
+- **Problèmes rencontrés** : aucun code Dart touché, donc pas de `flutter analyze`/`flutter test`. Pas de build natif lancé, le changement se limite à des chaînes de configuration. Codex n'est pas disponible dans cet environnement. Pas de commit.

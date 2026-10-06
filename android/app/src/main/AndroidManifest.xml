@@ -14,7 +14,7 @@
          `fullBackupContent`/`dataExtractionRules`) est le choix le plus
          simple et le plus sûr. -->
     <application
-        android:label="hope_gestion_mobile"
+        android:label="HGI Mobile"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false">

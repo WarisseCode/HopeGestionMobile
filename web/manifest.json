@@ -1,6 +1,6 @@
 {
-    "name": "hope_gestion_mobile",
-    "short_name": "hope_gestion_mobile",
+    "name": "HGI Mobile",
+    "short_name": "HGI Mobile",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
