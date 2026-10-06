@@ -1,5 +1,6 @@
 import '../../../core/network/api_exception.dart';
 import '../models/bail_detail.dart';
+import '../models/bail_resume.dart';
 import '../models/nouveau_bail.dart';
 
 /// Résultats de `BauxRepository.creerBail` (`POST /api/locations`) — un cas
@@ -84,6 +85,43 @@ class BailDetailNetworkError extends BailDetailResult {
 /// Tout autre échec (5xx, 401, réponse illisible…).
 class BailDetailFailure extends BailDetailResult {
   const BailDetailFailure(this.message, this.type);
+  final String message;
+  final ApiExceptionType type;
+}
+
+/// Résultats de `BauxRepository.getBailActifDuLot` (`GET /api/locations`,
+/// filtré côté client sur le lot et les statuts `actif`/`signe`).
+sealed class BailActifResult {
+  const BailActifResult();
+}
+
+/// Bail en cours trouvé (le plus récent si plusieurs).
+class BailActifTrouve extends BailActifResult {
+  const BailActifTrouve(this.bail);
+  final BailResume bail;
+}
+
+/// Succès : aucun bail `actif`/`signe` sur ce lot (lot vacant, ou bail hors
+/// périmètre du compte). Ce n'est pas une erreur.
+class LotSansBailActif extends BailActifResult {
+  const LotSansBailActif();
+}
+
+/// 403 : permission de module absente. Relancer ne change rien.
+class BailActifAccesRefuse extends BailActifResult {
+  const BailActifAccesRefuse(this.message);
+  final String message;
+}
+
+/// Réseau ou délai dépassé : relance possible (lecture idempotente).
+class BailActifNetworkError extends BailActifResult {
+  const BailActifNetworkError(this.message);
+  final String message;
+}
+
+/// Tout autre échec (5xx, 401, réponse illisible…).
+class BailActifFailure extends BailActifResult {
+  const BailActifFailure(this.message, this.type);
   final String message;
   final ApiExceptionType type;
 }

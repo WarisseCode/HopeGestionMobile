@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../finances/models/finance_parsing.dart' show formatDateIso;
 import '../models/bail_detail.dart';
+import '../models/bail_resume.dart';
 import '../models/nouveau_bail.dart';
 import 'baux_results.dart';
 
@@ -156,6 +157,50 @@ class BauxRepository extends ChangeNotifier {
       };
     } on FormatException catch (e) {
       return BailDetailFailure(e.message, ApiExceptionType.unknown);
+    }
+  }
+
+  /// Statuts d'un bail « en cours » (même règle que le contrôle serveur
+  /// « déjà une affectation active » de `POST /locations`).
+  static const _statutsBailEnCours = {'actif', 'signe'};
+
+  /// `GET /api/locations` (liste, filtrée par propriétaire côté serveur,
+  /// triée `created_at DESC`, sans pagination) puis filtre côté client :
+  /// premier bail du lot [lotId] au statut `actif` ou `signe`, donc le plus
+  /// récent. Lecture ponctuelle : aucun état partagé, aucun
+  /// `notifyListeners`.
+  ///
+  /// Le paramètre `statut` n'est volontairement pas envoyé : le serveur
+  /// n'accepte qu'une seule valeur, alors qu'il en faut deux.
+  Future<BailActifResult> getBailActifDuLot(int lotId) async {
+    try {
+      final response = await _apiClient.request<Map<String, dynamic>>(
+        '/locations',
+      );
+      final locations = response.data?['locations'];
+      if (locations is! List) {
+        throw const FormatException(
+          'Réponse de /locations sans champ "locations" exploitable.',
+        );
+      }
+      for (final ligne in locations.whereType<Map<String, dynamic>>()) {
+        final bail = BailResume.tryFromJson(ligne);
+        if (bail != null &&
+            bail.lotId == lotId &&
+            _statutsBailEnCours.contains(bail.statut)) {
+          return BailActifTrouve(bail);
+        }
+      }
+      return const LotSansBailActif();
+    } on ApiException catch (e) {
+      return switch (e.type) {
+        ApiExceptionType.forbidden => BailActifAccesRefuse(e.message),
+        ApiExceptionType.network ||
+        ApiExceptionType.timeout => BailActifNetworkError(e.message),
+        _ => BailActifFailure(e.message, e.type),
+      };
+    } on FormatException catch (e) {
+      return BailActifFailure(e.message, ApiExceptionType.unknown);
     }
   }
 }

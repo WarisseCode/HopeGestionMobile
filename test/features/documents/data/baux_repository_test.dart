@@ -344,6 +344,146 @@ void main() {
     });
   });
 
+  group('getBailActifDuLot (GET /locations, filtre client)', () {
+    Map<String, dynamic> ligne({
+      required int id,
+      required int lotId,
+      required String statut,
+      String? reference,
+    }) => {
+      'id': id,
+      'reference_bail': reference ?? 'BAIL-$id',
+      'lot_id': lotId,
+      'tenant_id': 3,
+      'date_debut': '2026-10-05',
+      'date_fin': '2027-10-05',
+      'loyer_mensuel': '185000.00',
+      'statut': statut,
+      'locataire_nom': 'Diop',
+      'locataire_prenoms': 'Yacine',
+      'locataire_telephone': '+22990000001',
+      'locataire_photo': '/uploads/yacine.jpg',
+      'ref_lot': 'A1',
+    };
+
+    test('bail trouvé : tous les champs, sans paramètre statut', () async {
+      RequestOptions? seen;
+      final repo = _repo((options) async {
+        seen = options;
+        return jsonResponse({
+          'locations': [ligne(id: 42, lotId: 12, statut: 'actif')],
+        }, 200);
+      });
+
+      final result = await repo.getBailActifDuLot(12) as BailActifTrouve;
+
+      expect(seen!.path, '/locations');
+      expect(seen!.method, 'GET');
+      expect(seen!.queryParameters.containsKey('statut'), isFalse);
+      final bail = result.bail;
+      expect(bail.id, 42);
+      expect(bail.referenceBail, 'BAIL-42');
+      expect(bail.tenantId, 3);
+      expect(bail.locataireNom, 'Diop');
+      expect(bail.locatairePrenoms, 'Yacine');
+      expect(bail.locataireNomComplet, 'Diop Yacine');
+      expect(bail.locataireTelephone, '+22990000001');
+      expect(bail.locatairePhoto, '/uploads/yacine.jpg');
+      expect(bail.dateDebut, DateTime(2026, 10, 5));
+      expect(bail.dateFin, DateTime(2027, 10, 5));
+      expect(bail.loyerMensuel, 185000);
+      expect(bail.statut, 'actif');
+    });
+
+    test('lot vacant : LotSansBailActif (succès, pas une erreur)', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'locations': [ligne(id: 1, lotId: 99, statut: 'actif')],
+        }, 200),
+      );
+
+      expect(await repo.getBailActifDuLot(12), isA<LotSansBailActif>());
+    });
+
+    test('liste vide : LotSansBailActif', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'locations': <dynamic>[]}, 200),
+      );
+
+      expect(await repo.getBailActifDuLot(12), isA<LotSansBailActif>());
+    });
+
+    test('filtrage : résiliés et autres lots ignorés, plus récent actif/signé', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          // Ordre serveur : created_at DESC.
+          'locations': [
+            ligne(id: 50, lotId: 12, statut: 'resilie'),
+            ligne(id: 49, lotId: 7, statut: 'actif'),
+            {'statut': 'actif', 'lot_id': 12}, // sans id : ignorée
+            ligne(id: 48, lotId: 12, statut: 'signe'),
+            ligne(id: 40, lotId: 12, statut: 'actif'),
+            ligne(id: 30, lotId: 12, statut: 'termine'),
+          ],
+        }, 200),
+      );
+
+      final result = await repo.getBailActifDuLot(12) as BailActifTrouve;
+      expect(result.bail.id, 48);
+      expect(result.bail.statut, 'signe');
+    });
+
+    test('uniquement des baux résiliés sur le lot : LotSansBailActif', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({
+          'locations': [
+            ligne(id: 50, lotId: 12, statut: 'resilie'),
+            ligne(id: 30, lotId: 12, statut: 'termine'),
+          ],
+        }, 200),
+      );
+
+      expect(await repo.getBailActifDuLot(12), isA<LotSansBailActif>());
+    });
+
+    test('403 : accès refusé', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Accès refusé'}, 403),
+      );
+
+      final result = await repo.getBailActifDuLot(12);
+      expect(result, isA<BailActifAccesRefuse>());
+      expect((result as BailActifAccesRefuse).message, 'Accès refusé');
+    });
+
+    test('réseau : erreur réseau', () async {
+      final repo = _repo((options) async {
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        );
+      });
+
+      expect(await repo.getBailActifDuLot(12), isA<BailActifNetworkError>());
+    });
+
+    test('réponse sans locations : échec de format', () async {
+      final repo = _repo((options) async => jsonResponse({'ok': true}, 200));
+
+      final result = await repo.getBailActifDuLot(12) as BailActifFailure;
+      expect(result.type, ApiExceptionType.unknown);
+    });
+
+    test('500 : échec générique de type serveur', () async {
+      final repo = _repo(
+        (options) async => jsonResponse({'message': 'Erreur serveur'}, 500),
+      );
+
+      final result = await repo.getBailActifDuLot(12) as BailActifFailure;
+      expect(result.type, ApiExceptionType.server);
+    });
+  });
+
   group('calculs (fonctions pures)', () {
     test('date_fin = date_debut + durée en mois', () {
       expect(calculerDateFinBail(DateTime(2026, 10, 5), 12), DateTime(2027, 10, 5));
