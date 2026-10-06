@@ -122,7 +122,9 @@ class _SignerBailScreenState extends State<SignerBailScreen>
                       const AppInfoBanner(
                         text:
                             'Signez dans le cadre ci-dessous. Le bail passera '
-                            'à « signé » et le propriétaire sera notifié.',
+                            'à « signé » et le propriétaire sera notifié. '
+                            'Les échéances mensuelles ne seront plus '
+                            'générées automatiquement pour ce bail.',
                       ),
                       const SizedBox(height: 14),
                       Expanded(
