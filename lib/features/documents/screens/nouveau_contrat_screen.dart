@@ -43,7 +43,10 @@ class NouveauContratScreen extends StatefulWidget {
   State<NouveauContratScreen> createState() => _NouveauContratScreenState();
 }
 
-class _NouveauContratScreenState extends State<NouveauContratScreen> {
+/// Verrou d'envoi ([VerrouEnvoi]) indispensable ici : backend non
+/// transactionnel — deux baux pourraient être créés sur le même lot.
+class _NouveauContratScreenState extends State<NouveauContratScreen>
+    with VerrouEnvoi {
   late final DateTime Function() _now = widget.maintenant ?? DateTime.now;
 
   _Etape _etape = _Etape.lot;
@@ -86,11 +89,6 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
   /// Message en haut du formulaire après un échec d'envoi.
   String? _avisFormulaire;
 
-  /// Verrou d'envoi, posé de façon synchrone avant l'appel réseau : un
-  /// double appui ne peut pas déclencher une deuxième requête (backend non
-  /// transactionnel — deux baux pourraient être créés sur le même lot).
-  final ValueNotifier<bool> _envoiEnCours = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -128,7 +126,6 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
     ]) {
       c.dispose();
     }
-    _envoiEnCours.dispose();
     super.dispose();
   }
 
@@ -314,16 +311,15 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
     final loyer = _montant(_loyerController)!;
     final duree = _entier(_dureeController)!;
     final avanceMois = _entier(_avanceController)!;
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => ValueListenableBuilder<bool>(
-        valueListenable: _envoiEnCours,
-        builder: (context, enCours, _) => _RecapitulatifSheet(
-          lignes: [
+    afficherRecapitulatifEnvoi(
+      context,
+      envoiEnCours: envoiEnCours,
+      titre: 'Confirmer le bail',
+      defilable: true,
+      contenu: () {
+        final conditions = _conditionsController.text.trim();
+        return [
+          for (final (label, value) in [
             ('Lot', _libelleLot(lot)),
             ('Propriétaire', lot.ownerName ?? '—'),
             ('Locataire', _locataire?.displayName ?? '—'),
@@ -335,19 +331,28 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
             ('Caution', formatFcfa(_montant(_cautionController)!)),
             ('Avance', libelleAvance(avanceMois: avanceMois, loyerMensuel: loyer)),
             ("Jour d'échéance", 'le ${_entier(_jourEcheanceController)} du mois'),
+          ])
+            AppRecapRow(label: label, value: value, maxLines: 2, espacement: 12),
+          if (conditions.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Conditions particulières', style: AppTypography.bodySmall(color: AppColors.mutedForeground)),
+            const SizedBox(height: 4),
+            Text(conditions, style: AppTypography.bodySmall(color: AppColors.foreground)),
           ],
-          conditions: _conditionsController.text.trim(),
-          enCours: enCours,
-          onModifier: () => Navigator.of(sheetContext).pop(),
-          onConfirmer: () => _confirmerEnvoi(sheetContext),
-        ),
-      ),
+          const SizedBox(height: 12),
+          const AppInfoBanner(
+            text:
+                'Le lot passera à « occupé ». Aucun PDF ni échéancier '
+                "n'est généré par cette action.",
+          ),
+        ];
+      },
+      onConfirmer: _confirmerEnvoi,
     );
   }
 
   Future<void> _confirmerEnvoi(BuildContext sheetContext) async {
-    if (_envoiEnCours.value) return; // garde anti-double-appui
-    _envoiEnCours.value = true;
+    if (!prendreVerrouEnvoi()) return; // garde anti-double-appui
 
     final lot = _lot!;
     final result = await BauxRepository.instance.creerBail(
@@ -418,20 +423,14 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
     }
   }
 
-  Future<void> _apresSucces(BailCree bail) async {
-    await showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _SuccesSheet(
-        reference: bail.referenceBail ?? 'n°${bail.id}',
-        onTerminer: () {
-          Navigator.of(sheetContext).pop();
-          // `true` : signale un changement à l'écran d'origine.
-          Navigator.of(context).pop(true);
-        },
-        onVoirBail: () {
+  Future<void> _apresSucces(BailCree bail) => afficherSuccesEnvoi(
+    context,
+    titre: 'Bail ${bail.referenceBail ?? 'n°${bail.id}'} créé',
+    sousTitre: 'Le contrat PDF et l’échéancier se gèrent séparément.',
+    actions: (sheetContext, terminer) => [
+      AppButton.primary(
+        label: 'Voir le bail',
+        onPressed: () {
           Navigator.of(sheetContext).pop();
           // La fiche remplace le formulaire (le retour ne ramène pas sur un
           // parcours déjà envoyé) ; `result: true` signale toujours le
@@ -442,8 +441,9 @@ class _NouveauContratScreenState extends State<NouveauContratScreen> {
           );
         },
       ),
-    );
-  }
+      AppButton.secondary(label: 'Terminer', onPressed: terminer),
+    ],
+  );
 
   static String _libelleLot(Lot lot) => [lot.reference, lot.immeubleNom]
       .whereType<String>()
@@ -836,132 +836,6 @@ class _LocataireRow extends StatelessWidget {
             ),
           ),
           Icon(LucideIcons.chevron_right, size: 18, color: AppColors.mutedForeground),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapitulatifSheet extends StatelessWidget {
-  const _RecapitulatifSheet({
-    required this.lignes,
-    required this.conditions,
-    required this.enCours,
-    required this.onModifier,
-    required this.onConfirmer,
-  });
-
-  final List<(String, String)> lignes;
-  final String conditions;
-  final bool enCours;
-  final VoidCallback onModifier;
-  final VoidCallback onConfirmer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Confirmer le bail', style: AppTypography.titleSection()),
-            const SizedBox(height: 16),
-            for (final (label, value) in lignes) _RecapRow(label: label, value: value),
-            if (conditions.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('Conditions particulières', style: AppTypography.bodySmall(color: AppColors.mutedForeground)),
-              const SizedBox(height: 4),
-              Text(conditions, style: AppTypography.bodySmall(color: AppColors.foreground)),
-            ],
-            const SizedBox(height: 12),
-            const AppInfoBanner(
-              text:
-                  'Le lot passera à « occupé ». Aucun PDF ni échéancier '
-                  "n'est généré par cette action.",
-            ),
-            const SizedBox(height: 20),
-            AppButton.primary(label: 'Confirmer', isLoading: enCours, onPressed: enCours ? null : onConfirmer),
-            const SizedBox(height: 10),
-            AppButton.secondary(label: 'Modifier', onPressed: enCours ? null : onModifier),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecapRow extends StatelessWidget {
-  const _RecapRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTypography.bodySmall(color: AppColors.mutedForeground)),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodySmall(color: AppColors.foreground).copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccesSheet extends StatelessWidget {
-  const _SuccesSheet({
-    required this.reference,
-    required this.onTerminer,
-    required this.onVoirBail,
-  });
-
-  final String reference;
-  final VoidCallback onTerminer;
-  final VoidCallback onVoirBail;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(color: AppColors.positiveSoft, shape: BoxShape.circle),
-            child: Icon(LucideIcons.circle_check, color: AppColors.positive, size: 30),
-          ),
-          const SizedBox(height: 14),
-          Text('Bail $reference créé', textAlign: TextAlign.center, style: AppTypography.titleScreen(fontSize: 20)),
-          const SizedBox(height: 8),
-          Text(
-            'Le contrat PDF et l’échéancier se gèrent séparément.',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySmall(color: AppColors.mutedForeground),
-          ),
-          const SizedBox(height: 24),
-          // Empilés plutôt que côte à côte : à 390 px, deux AppButton en
-          // ligne débordent (libellés non flexibles).
-          SizedBox(width: double.infinity, child: AppButton.primary(label: 'Voir le bail', onPressed: onVoirBail)),
-          const SizedBox(height: 10),
-          SizedBox(width: double.infinity, child: AppButton.secondary(label: 'Terminer', onPressed: onTerminer)),
         ],
       ),
     );

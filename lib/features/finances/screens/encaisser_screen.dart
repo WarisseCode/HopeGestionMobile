@@ -72,7 +72,8 @@ class EncaisserScreen extends StatefulWidget {
   State<EncaisserScreen> createState() => _EncaisserScreenState();
 }
 
-class _EncaisserScreenState extends State<EncaisserScreen> {
+class _EncaisserScreenState extends State<EncaisserScreen>
+    with VerrouEnvoi {
   late final DateTime Function() _now = widget.maintenant ?? DateTime.now;
 
   late _Etape _etape;
@@ -119,11 +120,6 @@ class _EncaisserScreenState extends State<EncaisserScreen> {
   String? _erreurMontant;
   String? _erreurDate;
 
-  /// Verrou d'envoi : vérifié et posé de façon synchrone avant tout appel
-  /// réseau, donc un double appui (même avant le premier repaint) ne peut
-  /// jamais déclencher une deuxième requête.
-  final ValueNotifier<bool> _envoiEnCours = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -153,7 +149,6 @@ class _EncaisserScreenState extends State<EncaisserScreen> {
     _montantController.dispose();
     _referenceController.dispose();
     _dateController.dispose();
-    _envoiEnCours.dispose();
     super.dispose();
   }
 
@@ -402,36 +397,41 @@ class _EncaisserScreenState extends State<EncaisserScreen> {
   }
 
   void _ouvrirRecapitulatif() {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => ValueListenableBuilder<bool>(
-        valueListenable: _envoiEnCours,
-        builder: (context, enCours, _) => _RecapitulatifSheet(
-          locataireNom: _locataire?.displayName ?? '—',
-          bailLibelle: [
-            _bail?.refLot,
-            _bail?.buildingName,
-          ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
-          echeance: _echeance!,
-          montant: _montantSaisi() ?? 0,
-          modePaiement: _modePaiement,
-          date: _datePaiement,
-          estAcompte: _estUnAcompte,
-          reference: _referenceController.text.trim(),
-          enCours: enCours,
-          onModifier: () => Navigator.of(sheetContext).pop(),
-          onConfirmer: () => _confirmerEnvoi(sheetContext),
-        ),
+    afficherRecapitulatifEnvoi(
+      context,
+      envoiEnCours: envoiEnCours,
+      titre: 'Confirmer l\'encaissement',
+      badge: () => AppBadge(
+        label: _estUnAcompte ? 'ACOMPTE' : 'SOLDE',
+        type: _estUnAcompte ? AppBadgeType.warning : AppBadgeType.positive,
+        isUppercase: true,
       ),
+      contenu: () {
+        final echeance = _echeance!;
+        final bailLibelle = [
+          _bail?.refLot,
+          _bail?.buildingName,
+        ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+        final reference = _referenceController.text.trim();
+        return [
+          AppRecapRow(label: 'Locataire', value: _locataire?.displayName ?? '—'),
+          if (bailLibelle.isNotEmpty) AppRecapRow(label: 'Bail', value: bailLibelle),
+          AppRecapRow(
+            label: 'Échéance',
+            value: echeance.dateEcheance != null ? formatDateLongue(echeance.dateEcheance!) : 'Échéance #${echeance.id}',
+          ),
+          AppRecapRow(label: 'Montant', value: formatMontant(_montantSaisi() ?? 0)),
+          AppRecapRow(label: 'Mode', value: libelleModePaiement(_modePaiement)),
+          AppRecapRow(label: 'Date', value: formatDateLongue(_datePaiement)),
+          if (reference.isNotEmpty) AppRecapRow(label: 'Référence', value: reference),
+        ];
+      },
+      onConfirmer: _confirmerEnvoi,
     );
   }
 
   Future<void> _confirmerEnvoi(BuildContext sheetContext) async {
-    if (_envoiEnCours.value) return; // garde anti-double-appui
-    _envoiEnCours.value = true;
+    if (!prendreVerrouEnvoi()) return; // garde anti-double-appui
 
     final montant = _montantSaisi() ?? 0;
     final reference = _referenceController.text.trim();
@@ -443,7 +443,7 @@ class _EncaisserScreenState extends State<EncaisserScreen> {
       reference: reference.isEmpty ? null : reference,
     );
     if (!mounted) return;
-    _envoiEnCours.value = false;
+    libererVerrouEnvoi();
     if (!sheetContext.mounted) return; // feuille déjà fermée entre-temps
 
     switch (result) {
@@ -469,25 +469,25 @@ class _EncaisserScreenState extends State<EncaisserScreen> {
     }
   }
 
-  Future<void> _apresSucces({required String message, String? receiptUrl}) async {
-    await showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _SuccesSheet(
-        message: message,
-        receiptUrl: receiptUrl,
-        onOuvrirQuittance: (url) => ouvrirFichierOuCopier(sheetContext, url),
-        onTerminer: () {
-          Navigator.of(sheetContext).pop();
-          // `true` : signale un changement à l'écran d'origine — celui-ci
-          // recharge de toute façon dans tous les cas (voir call sites).
-          Navigator.of(context).pop(true);
-        },
-      ),
-    );
-  }
+  // `true` à la fermeture (voir `afficherSuccesEnvoi`) : l'écran d'origine
+  // recharge de toute façon dans tous les cas (voir call sites).
+  Future<void> _apresSucces({required String message, String? receiptUrl}) =>
+      afficherSuccesEnvoi(
+        context,
+        titre: message,
+        actions: (sheetContext, terminer) => [
+          if (receiptUrl != null && receiptUrl.isNotEmpty)
+            AppButton.primary(
+              label: 'Ouvrir la quittance',
+              icon: const Icon(LucideIcons.file_text, size: 18, color: Colors.white),
+              onPressed: () => ouvrirFichierOuCopier(
+                sheetContext,
+                AppConfig.resolveFileUrl(receiptUrl),
+              ),
+            ),
+          AppButton.secondary(label: 'Terminer', onPressed: terminer),
+        ],
+      );
 
   // ── Rendu ─────────────────────────────────────────────────────────────
 
@@ -919,153 +919,6 @@ class _EcheanceRow extends StatelessWidget {
               AppBadge(label: label, type: type),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapitulatifSheet extends StatelessWidget {
-  const _RecapitulatifSheet({
-    required this.locataireNom,
-    required this.bailLibelle,
-    required this.echeance,
-    required this.montant,
-    required this.modePaiement,
-    required this.date,
-    required this.estAcompte,
-    required this.reference,
-    required this.enCours,
-    required this.onModifier,
-    required this.onConfirmer,
-  });
-
-  final String locataireNom;
-  final String bailLibelle;
-  final Echeance echeance;
-  final double montant;
-  final String modePaiement;
-  final DateTime date;
-  final bool estAcompte;
-  final String reference;
-  final bool enCours;
-  final VoidCallback onModifier;
-  final VoidCallback onConfirmer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text('Confirmer l\'encaissement', style: AppTypography.titleSection())),
-              AppBadge(
-                label: estAcompte ? 'ACOMPTE' : 'SOLDE',
-                type: estAcompte ? AppBadgeType.warning : AppBadgeType.positive,
-                isUppercase: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _RecapRow(label: 'Locataire', value: locataireNom),
-          if (bailLibelle.isNotEmpty) _RecapRow(label: 'Bail', value: bailLibelle),
-          _RecapRow(
-            label: 'Échéance',
-            value: echeance.dateEcheance != null ? formatDateLongue(echeance.dateEcheance!) : 'Échéance #${echeance.id}',
-          ),
-          _RecapRow(label: 'Montant', value: formatMontant(montant)),
-          _RecapRow(label: 'Mode', value: libelleModePaiement(modePaiement)),
-          _RecapRow(label: 'Date', value: formatDateLongue(date)),
-          if (reference.isNotEmpty) _RecapRow(label: 'Référence', value: reference),
-          const SizedBox(height: 20),
-          // Empilés (pas côte à côte) : « Confirmer » doit rester lisible
-          // avec son indicateur de chargement, à toute taille de police
-          // système — un partage en deux moitiés serrait trop ce texte.
-          AppButton.primary(label: 'Confirmer', isLoading: enCours, onPressed: onConfirmer),
-          const SizedBox(height: 10),
-          AppButton.secondary(label: 'Modifier', onPressed: enCours ? null : onModifier),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapRow extends StatelessWidget {
-  const _RecapRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTypography.bodySmall(color: AppColors.mutedForeground)),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodySmall(color: AppColors.foreground).copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccesSheet extends StatelessWidget {
-  const _SuccesSheet({
-    required this.message,
-    required this.receiptUrl,
-    required this.onOuvrirQuittance,
-    required this.onTerminer,
-  });
-
-  final String message;
-  final String? receiptUrl;
-  final void Function(String url) onOuvrirQuittance;
-  final VoidCallback onTerminer;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = receiptUrl;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(color: AppColors.positiveSoft, shape: BoxShape.circle),
-            child: Icon(LucideIcons.circle_check, color: AppColors.positive, size: 30),
-          ),
-          const SizedBox(height: 14),
-          Text(message, textAlign: TextAlign.center, style: AppTypography.titleScreen(fontSize: 20)),
-          const SizedBox(height: 24),
-          if (url != null && url.isNotEmpty) ...[
-            SizedBox(
-              width: double.infinity,
-              child: AppButton.primary(
-                label: 'Ouvrir la quittance',
-                icon: const Icon(LucideIcons.file_text, size: 18, color: Colors.white),
-                onPressed: () => onOuvrirQuittance(AppConfig.resolveFileUrl(url)),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-          SizedBox(width: double.infinity, child: AppButton.secondary(label: 'Terminer', onPressed: onTerminer)),
         ],
       ),
     );

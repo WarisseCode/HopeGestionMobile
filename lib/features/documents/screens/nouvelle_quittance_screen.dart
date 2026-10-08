@@ -78,7 +78,8 @@ class NouvelleQuittanceScreen extends StatefulWidget {
       _NouvelleQuittanceScreenState();
 }
 
-class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
+class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen>
+    with VerrouEnvoi {
   late final DateTime Function() _now = widget.maintenant ?? DateTime.now;
 
   late _Etape _etape;
@@ -122,10 +123,6 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
   bool _quittancesChargees = false;
   String? _avisVerificationDoublon;
 
-  /// Verrou d'envoi : posé de façon synchrone avant tout appel réseau — un
-  /// double appui ne peut jamais déclencher une deuxième requête.
-  final ValueNotifier<bool> _envoiEnCours = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -150,7 +147,6 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
     _bienController.dispose();
     _periodeController.dispose();
     _dateEmissionController.dispose();
-    _envoiEnCours.dispose();
     super.dispose();
   }
 
@@ -400,35 +396,45 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
   }
 
   void _ouvrirRecapitulatif() {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => ValueListenableBuilder<bool>(
-        valueListenable: _envoiEnCours,
-        builder: (context, enCours, _) => _RecapitulatifSheet(
-          locataireNom: _locataire?.displayName ?? '—',
-          bailLibelle: [
-            _bail?.refLot,
-            _bail?.buildingName,
-          ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
-          bien: _bienController.text.trim(),
-          periodeLabel: formatMois(_periodeMois),
-          montant: _montantSaisi() ?? 0,
-          dateEmission: _dateEmission,
-          doublonDetecte: _doublonDetecte,
-          enCours: enCours,
-          onModifier: () => Navigator.of(sheetContext).pop(),
-          onConfirmer: () => _confirmerEnvoi(sheetContext),
-        ),
-      ),
+    afficherRecapitulatifEnvoi(
+      context,
+      envoiEnCours: envoiEnCours,
+      titre: 'Confirmer la quittance',
+      contenu: () {
+        final bailLibelle = [
+          _bail?.refLot,
+          _bail?.buildingName,
+        ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+        final bien = _bienController.text.trim();
+        return [
+          AppRecapRow(label: 'Locataire', value: _locataire?.displayName ?? '—'),
+          if (bailLibelle.isNotEmpty) AppRecapRow(label: 'Bail', value: bailLibelle),
+          if (bien.isNotEmpty) AppRecapRow(label: 'Bien', value: bien),
+          AppRecapRow(label: 'Période', value: formatMois(_periodeMois)),
+          AppRecapRow(label: 'Montant', value: formatMontant(_montantSaisi() ?? 0)),
+          AppRecapRow(label: "Date d'émission", value: formatDateLongue(_dateEmission)),
+          const SizedBox(height: 12),
+          if (_doublonDetecte) ...[
+            const AppWarningBanner(
+              text:
+                  'Une quittance manuelle existe déjà pour ce bail et cette '
+                  'période. Vérifiez avant de confirmer.',
+            ),
+            const SizedBox(height: 12),
+          ],
+          const AppInfoBanner(
+            text:
+                "Aucun paiement n'est enregistré par cette action. Le PDF "
+                'est disponible sur l\'application web.',
+          ),
+        ];
+      },
+      onConfirmer: _confirmerEnvoi,
     );
   }
 
   Future<void> _confirmerEnvoi(BuildContext sheetContext) async {
-    if (_envoiEnCours.value) return; // garde anti-double-appui
-    _envoiEnCours.value = true;
+    if (!prendreVerrouEnvoi()) return; // garde anti-double-appui
 
     final result = await DocumentsRepository.instance.creerQuittanceManuelle(
       leaseId: _bail!.id,
@@ -439,7 +445,7 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
       dateEmission: formatDateIso(_dateEmission),
     );
     if (!mounted) return;
-    _envoiEnCours.value = false;
+    libererVerrouEnvoi();
     if (!sheetContext.mounted) return; // feuille déjà fermée entre-temps
 
     switch (result) {
@@ -470,22 +476,16 @@ class _NouvelleQuittanceScreenState extends State<NouvelleQuittanceScreen> {
     }
   }
 
-  Future<void> _apresSucces(QuittanceManuelle quittance) async {
-    await showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _SuccesSheet(
-        numero: quittance.numero ?? '—',
-        onTerminer: () {
-          Navigator.of(sheetContext).pop();
-          // `true` : signale un changement à l'écran d'origine.
-          Navigator.of(context).pop(true);
-        },
-      ),
-    );
-  }
+  Future<void> _apresSucces(QuittanceManuelle quittance) => afficherSuccesEnvoi(
+    context,
+    titre: 'Quittance ${quittance.numero ?? '—'} créée',
+    sousTitre:
+        "Aucun paiement n'a été enregistré. Le PDF est disponible sur "
+        "l'application web.",
+    actions: (_, terminer) => [
+      AppButton.secondary(label: 'Terminer', onPressed: terminer),
+    ],
+  );
 
   // ── Rendu ─────────────────────────────────────────────────────────────
 
@@ -805,137 +805,6 @@ class _BailRow extends StatelessWidget {
             label: bail.statut.isEmpty ? '—' : bail.statut,
             type: _bailEstActif(bail) ? AppBadgeType.positive : AppBadgeType.neutral,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapitulatifSheet extends StatelessWidget {
-  const _RecapitulatifSheet({
-    required this.locataireNom,
-    required this.bailLibelle,
-    required this.bien,
-    required this.periodeLabel,
-    required this.montant,
-    required this.dateEmission,
-    required this.doublonDetecte,
-    required this.enCours,
-    required this.onModifier,
-    required this.onConfirmer,
-  });
-
-  final String locataireNom;
-  final String bailLibelle;
-  final String bien;
-  final String periodeLabel;
-  final double montant;
-  final DateTime dateEmission;
-  final bool doublonDetecte;
-  final bool enCours;
-  final VoidCallback onModifier;
-  final VoidCallback onConfirmer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Confirmer la quittance', style: AppTypography.titleSection()),
-          const SizedBox(height: 16),
-          _RecapRow(label: 'Locataire', value: locataireNom),
-          if (bailLibelle.isNotEmpty) _RecapRow(label: 'Bail', value: bailLibelle),
-          if (bien.isNotEmpty) _RecapRow(label: 'Bien', value: bien),
-          _RecapRow(label: 'Période', value: periodeLabel),
-          _RecapRow(label: 'Montant', value: formatMontant(montant)),
-          _RecapRow(label: "Date d'émission", value: formatDateLongue(dateEmission)),
-          const SizedBox(height: 12),
-          if (doublonDetecte) ...[
-            const AppWarningBanner(
-              text:
-                  'Une quittance manuelle existe déjà pour ce bail et cette '
-                  'période. Vérifiez avant de confirmer.',
-            ),
-            const SizedBox(height: 12),
-          ],
-          const AppInfoBanner(
-            text:
-                "Aucun paiement n'est enregistré par cette action. Le PDF "
-                'est disponible sur l\'application web.',
-          ),
-          const SizedBox(height: 20),
-          AppButton.primary(label: 'Confirmer', isLoading: enCours, onPressed: onConfirmer),
-          const SizedBox(height: 10),
-          AppButton.secondary(label: 'Modifier', onPressed: enCours ? null : onModifier),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapRow extends StatelessWidget {
-  const _RecapRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTypography.bodySmall(color: AppColors.mutedForeground)),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodySmall(color: AppColors.foreground).copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccesSheet extends StatelessWidget {
-  const _SuccesSheet({required this.numero, required this.onTerminer});
-
-  final String numero;
-  final VoidCallback onTerminer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: AppColors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(color: AppColors.positiveSoft, shape: BoxShape.circle),
-            child: Icon(LucideIcons.circle_check, color: AppColors.positive, size: 30),
-          ),
-          const SizedBox(height: 14),
-          Text('Quittance $numero créée', textAlign: TextAlign.center, style: AppTypography.titleScreen(fontSize: 20)),
-          const SizedBox(height: 8),
-          Text(
-            "Aucun paiement n'a été enregistré. Le PDF est disponible sur "
-            "l'application web.",
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySmall(color: AppColors.mutedForeground),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: AppButton.secondary(label: 'Terminer', onPressed: onTerminer)),
         ],
       ),
     );

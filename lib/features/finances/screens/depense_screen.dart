@@ -43,7 +43,8 @@ class DepenseScreen extends StatefulWidget {
   State<DepenseScreen> createState() => _DepenseScreenState();
 }
 
-class _DepenseScreenState extends State<DepenseScreen> {
+class _DepenseScreenState extends State<DepenseScreen>
+    with VerrouEnvoi {
   late final DateTime Function() _now = widget.maintenant ?? DateTime.now;
   late final OwnersRepository _ownersRepository;
   final ImagePicker _picker = ImagePicker();
@@ -80,11 +81,6 @@ class _DepenseScreenState extends State<DepenseScreen> {
   /// réseau) — pas un champ précis, en bas du formulaire.
   String? _erreurEnvoi;
 
-  /// Verrou d'envoi : vérifié et posé de façon synchrone avant tout appel
-  /// réseau, donc un double appui ne peut jamais déclencher une deuxième
-  /// requête (même garde qu'`EncaisserScreen`, T-044).
-  final ValueNotifier<bool> _envoiEnCours = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -102,7 +98,6 @@ class _DepenseScreenState extends State<DepenseScreen> {
     _dateController.dispose();
     _intituleController.dispose();
     _fournisseurController.dispose();
-    _envoiEnCours.dispose();
     super.dispose();
   }
 
@@ -272,26 +267,41 @@ class _DepenseScreenState extends State<DepenseScreen> {
 
   void _ouvrirRecapitulatif() {
     setState(() => _erreurEnvoi = null);
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => ValueListenableBuilder<bool>(
-        valueListenable: _envoiEnCours,
-        builder: (context, enCours, _) => _RecapitulatifSheet(
-          categorie: _categorieChoisie!,
-          montant: _montantSaisi() ?? 0,
-          date: _date,
-          intitule: _intituleController.text.trim(),
-          fournisseur: _fournisseurController.text.trim(),
-          rattachementLibelle: _rattachementLibelle,
-          aUnJustificatif: _justificatif != null,
-          enCours: enCours,
-          onModifier: () => Navigator.of(sheetContext).pop(),
-          onConfirmer: () => _confirmerEnvoi(sheetContext),
-        ),
-      ),
+    afficherRecapitulatifEnvoi(
+      context,
+      envoiEnCours: envoiEnCours,
+      titre: 'Confirmer la dépense',
+      contenu: () {
+        final intitule = _intituleController.text.trim();
+        final fournisseur = _fournisseurController.text.trim();
+        return [
+          AppRecapRow(label: 'Catégorie', value: _categorieChoisie!),
+          AppRecapRow(label: 'Montant', value: formatMontant(_montantSaisi() ?? 0)),
+          AppRecapRow(label: 'Date', value: formatDateLongue(_date)),
+          if (intitule.isNotEmpty) AppRecapRow(label: 'Intitulé', value: intitule),
+          if (fournisseur.isNotEmpty) AppRecapRow(label: 'Fournisseur', value: fournisseur),
+          AppRecapRow(label: 'Rattachement', value: _rattachementLibelle),
+          AppRecapRow(
+            label: 'Justificatif',
+            value: _justificatif != null ? 'Joint' : 'Aucun',
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warningSoft,
+              borderRadius: AppRadius.borderMd,
+            ),
+            child: Text(
+              'Cette dépense ne pourra être corrigée ou supprimée que depuis '
+              "l'espace web.",
+              style: AppTypography.bodySmall(color: AppColors.warning),
+            ),
+          ),
+        ];
+      },
+      onConfirmer: _confirmerEnvoi,
     );
   }
 
@@ -306,8 +316,7 @@ class _DepenseScreenState extends State<DepenseScreen> {
   }
 
   Future<void> _confirmerEnvoi(BuildContext sheetContext) async {
-    if (_envoiEnCours.value) return; // garde anti-double-appui
-    _envoiEnCours.value = true;
+    if (!prendreVerrouEnvoi()) return; // garde anti-double-appui
 
     final intitule = _intituleController.text.trim();
     final fournisseur = _fournisseurController.text.trim();
@@ -329,7 +338,7 @@ class _DepenseScreenState extends State<DepenseScreen> {
       justificatif: _justificatif,
     );
     if (!mounted) return;
-    _envoiEnCours.value = false;
+    libererVerrouEnvoi();
     if (!sheetContext.mounted) return; // feuille déjà fermée entre-temps
 
     switch (result) {
@@ -365,22 +374,15 @@ class _DepenseScreenState extends State<DepenseScreen> {
     }
   }
 
-  Future<void> _apresSucces() async {
-    await showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _SuccesSheet(
-        onTerminer: () {
-          Navigator.of(sheetContext).pop();
-          // `true` : signale un changement à l'écran d'origine — celui-ci
-          // recharge de toute façon dans tous les cas (voir call sites).
-          Navigator.of(context).pop(true);
-        },
-      ),
-    );
-  }
+  // `true` à la fermeture (voir `afficherSuccesEnvoi`) : l'écran d'origine
+  // recharge de toute façon dans tous les cas (voir call sites).
+  Future<void> _apresSucces() => afficherSuccesEnvoi(
+    context,
+    titre: 'Dépense enregistrée',
+    actions: (_, terminer) => [
+      AppButton.primary(label: 'Retour aux finances', onPressed: terminer),
+    ],
+  );
 
   // ── Rendu ─────────────────────────────────────────────────────────────
 
@@ -968,169 +970,6 @@ class _SourceOption extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RecapitulatifSheet extends StatelessWidget {
-  const _RecapitulatifSheet({
-    required this.categorie,
-    required this.montant,
-    required this.date,
-    required this.intitule,
-    required this.fournisseur,
-    required this.rattachementLibelle,
-    required this.aUnJustificatif,
-    required this.enCours,
-    required this.onModifier,
-    required this.onConfirmer,
-  });
-
-  final String categorie;
-  final double montant;
-  final DateTime date;
-  final String intitule;
-  final String fournisseur;
-  final String rattachementLibelle;
-  final bool aUnJustificatif;
-  final bool enCours;
-  final VoidCallback onModifier;
-  final VoidCallback onConfirmer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Confirmer la dépense", style: AppTypography.titleSection()),
-          const SizedBox(height: 16),
-          _RecapRow(label: 'Catégorie', value: categorie),
-          _RecapRow(label: 'Montant', value: formatMontant(montant)),
-          _RecapRow(label: 'Date', value: formatDateLongue(date)),
-          if (intitule.isNotEmpty) _RecapRow(label: 'Intitulé', value: intitule),
-          if (fournisseur.isNotEmpty) _RecapRow(label: 'Fournisseur', value: fournisseur),
-          _RecapRow(label: 'Rattachement', value: rattachementLibelle),
-          _RecapRow(
-            label: 'Justificatif',
-            value: aUnJustificatif ? 'Joint' : 'Aucun',
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.warningSoft,
-              borderRadius: AppRadius.borderMd,
-            ),
-            child: Text(
-              'Cette dépense ne pourra être corrigée ou supprimée que depuis '
-              "l'espace web.",
-              style: AppTypography.bodySmall(color: AppColors.warning),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Empilés (pas côte à côte), même raison qu'`EncaisserScreen`
-          // (T-044) : « Confirmer » reste lisible avec son indicateur de
-          // chargement à toute taille de police système.
-          AppButton.primary(
-            label: 'Confirmer',
-            isLoading: enCours,
-            onPressed: onConfirmer,
-          ),
-          const SizedBox(height: 10),
-          AppButton.secondary(label: 'Modifier', onPressed: enCours ? null : onModifier),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecapRow extends StatelessWidget {
-  const _RecapRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTypography.bodySmall(color: AppColors.mutedForeground)),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodySmall(
-                color: AppColors.foreground,
-              ).copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccesSheet extends StatelessWidget {
-  const _SuccesSheet({required this.onTerminer});
-  final VoidCallback onTerminer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.positiveSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              LucideIcons.circle_check,
-              color: AppColors.positive,
-              size: 30,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Dépense enregistrée',
-            textAlign: TextAlign.center,
-            style: AppTypography.titleScreen(fontSize: 20),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: AppButton.primary(
-              label: 'Retour aux finances',
-              onPressed: onTerminer,
-            ),
-          ),
-        ],
       ),
     );
   }

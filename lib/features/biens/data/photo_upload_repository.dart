@@ -30,6 +30,14 @@ class UploadPhotoFailure extends UploadPhotoResult {
 /// Locataires — voir `resolveFolder` côté serveur) : le `type` détermine
 /// le dossier de destination, même convention que le web (`ImageUpload
 /// .tsx`, prop `folder`).
+///
+/// Pas d'état partagé entre écrans (contrairement à `AuthRepository`) : chaque
+/// upload est une opération ponctuelle et sans cache, dont seul le widget
+/// appelant (`PhotosPicker`, `AvatarPicker`) consomme le résultat avant de le
+/// remonter à son formulaire. Il n'y a donc rien à exposer en
+/// `ChangeNotifier` ni à garder dans une instance statique : chaque widget
+/// crée sa propre instance avec l'`ApiClient` partagé
+/// (`AuthRepository.instance.apiClient`).
 class PhotoUploadRepository {
   PhotoUploadRepository({required ApiClient apiClient})
     // ignore: prefer_initializing_formals

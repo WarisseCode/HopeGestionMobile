@@ -41,24 +41,11 @@ class NouveauLocataireForm {
   bool paiementEchelonne = false;
 
   // Constantes
-  static const List<String> typesProfile = [
-    'Locataire',
-    'Acheteur',
-    'Prospect',
-  ];
-
   static const List<String> typesId = [
     'Carte Nationale d\'Identité (CNI)',
     'Passeport',
     'Permis de conduire',
     'Titre de séjour',
-  ];
-
-  static const List<String> modesPaiement = [
-    'Mobile Money',
-    'Espèces',
-    'Virement',
-    'Chèque',
   ];
 
   /// Valide l'étape 1 (nom, prénom, téléphone — champs réellement exigés par

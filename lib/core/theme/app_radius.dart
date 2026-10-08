@@ -5,7 +5,6 @@ abstract class AppRadius {
   /// Rayon extra-petit (8px)
   static const double xs = 8.0;
   static const Radius radiusXs = Radius.circular(xs);
-  static const BorderRadius borderXs = BorderRadius.all(radiusXs);
 
   /// Rayon petit (12px) - utilisé pour boutons, inputs, badges
   static const double sm = 12.0;
@@ -25,7 +24,6 @@ abstract class AppRadius {
   /// Très grand rayon (32px)
   static const double xl = 32.0;
   static const Radius radiusXl = Radius.circular(xl);
-  static const BorderRadius borderXl = BorderRadius.all(radiusXl);
 
   /// Rayon complet (pilule / cercle 9999px)
   static const double full = 9999.0;
