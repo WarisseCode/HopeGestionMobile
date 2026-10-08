@@ -1054,3 +1054,48 @@ session/projet que le chantier est piloté.
 - **Fichiers touchés** : `android/app/src/main/AndroidManifest.xml`, `ios/Runner/Info.plist`, `windows/runner/main.cpp`, `windows/runner/Runner.rc`, `web/index.html`, `web/manifest.json`, `docs/JOURNAL_PROJET.md`.
 - **Décisions & justifications** : seuls les libellés d'affichage changent. Le nom du paquet Dart (`hope_gestion_mobile`), l'`applicationId`/`namespace` Android, le bundle identifier iOS (`com.hopegestion.hopeGestionMobile`) et le nom du binaire Windows (`BINARY_NAME`, `InternalName`, `OriginalFilename`) restent inchangés, pour préserver la continuité Play Store/App Store et la configuration Google Sign-In (SHA-1 + nom de paquet). Les textes affichés dans l'application sont hors périmètre.
 - **Problèmes rencontrés** : aucun code Dart touché, donc pas de `flutter analyze`/`flutter test`. Pas de build natif lancé, le changement se limite à des chaînes de configuration. Codex n'est pas disponible dans cet environnement. Pas de commit.
+
+### T-065 : Audit sécurité mobile — stockage, réseau, permissions, fichiers locaux, auth, WebView (lecture seule)
+- **Date** : 2026-10-06
+- **Statut** : Terminée
+- **Type** : Documentation
+- **Description** : audit sécurité ciblé sur des angles mobiles non encore couverts (hors IDOR backend déjà traités en T-009 à T-017) : fuite de secrets, cleartext/ATS, permissions/composants exportés, stockage des fichiers sensibles (signature, pièce d'identité, PDF), politique de mot de passe et déconnexion, WebView. Aucune faille critique côté mobile ; deux points moyens relevés (fichiers `/uploads` servis sans authentification, accessibles via le presse-papiers/app externe à l'ouverture d'un PDF ; politique de mot de passe incohérente entre inscription et changement, à corriger côté backend) et cinq points mineurs (absence de certificate pinning, schéma `http://` non contrôlé en release dans `AppConfig`, cache d'images d'image_picker jamais purgé, `<queries>` http résiduel dans le manifest main, libellés iOS de permission galerie/caméra incomplets).
+- **Fichiers touchés** : aucun fichier de code modifié (audit en lecture seule) ; `docs/JOURNAL_PROJET.md` (cette entrée).
+- **Décisions & justifications** : aucune correction appliquée dans ce lot, l'audit est purement diagnostique. Les deux points moyens relèvent du backend (URLs signées/middleware d'auth sur `/uploads`, alignement de la règle de complexité du mot de passe) et seront traités dans un futur lot HopeGestionV2, pas dans ce dépôt mobile.
+- **Problèmes rencontrés** : aucun.
+
+### T-066 : Audit qualité du code — mocks, analyze, patterns, code mort, duplication, tests (lecture seule)
+- **Date** : 2026-10-06
+- **Statut** : Terminée
+- **Type** : Documentation
+- **Description** : audit qualité délégué à 3 sous-agents en lecture seule. Backlog de mocks confirmé à jour, avec un ajout non catalogué (`apercu_non_enregistre_screen.dart` sert aussi la création de contrat mockée, pas seulement l'état des lieux). `flutter analyze` : toujours 15 infos `use_null_aware_elements` (14 dans `biens_repository.dart`, 1 dans `locataires_repository.dart`), 0 warning/erreur. Aucun TODO/FIXME/HACK/XXX dans lib/. Patterns repository cohérents (8/11 en ChangeNotifier+instance/initialize ; 3 exceptions documentées ou justifiables) ; résultats scellés utilisés uniquement pour les appels API, try/catch direct seulement sur des plugins device (picker, launchUrl, stockage local). 1 fichier mort identifié (`design_system_preview_screen.dart`) et quelques membres publics inutilisés. 5 duplications flagrantes relevées (verrou anti-double-envoi, feuille récapitulatif, feuille succès, widget erreur+Réessayer, squelette formulaire multi-étapes). 19 écrans et 1 repository sans test identifiés.
+- **Fichiers touchés** : aucun fichier de code modifié (audit en lecture seule) ; `docs/JOURNAL_PROJET.md` (cette entrée).
+- **Décisions & justifications** : aucune correction appliquée dans ce lot, l'audit est purement diagnostique. Travail découpé en 3 sous-agents à contexte minimal (mocks/analyze/TODO ; patterns/code mort ; duplication/tests) conformément aux règles de délégation du projet.
+- **Problèmes rencontrés** : la détection de code mort est du name-matching, pas une analyse sémantique (faux négatifs possibles sur extensions, overrides, getters/setters implicites). Pas de commit.
+
+### T-067 : Audit dépendances mobile — outdated, contraintes, lock, CVE (lecture seule)
+- **Date** : 2026-10-06
+- **Statut** : Terminée
+- **Type** : Documentation
+- **Description** : audit délégué à un sous-agent (`flutter pub outdated --show-all`, lecture pubspec.yaml/.lock, recherche web des avis de sécurité). Deux majeures directes disponibles mais non critiques (`cupertino_icons` 1→2, `google_fonts` 8→9) ; 16 paquets avec patch/mineur disponible via `flutter pub upgrade` sans toucher au pubspec ; aucun paquet « discontinued ». Toutes les contraintes sont en `^x.y.z` (pas de `any`, pas de borne manquante). `google_sign_in` à la limite du seuil d'un an sans release (implémentations natives Android/iOS à jour, non critique). Aucune vulnérabilité active trouvée sur `dio`, `flutter_secure_storage`, `google_sign_in`, `signature`, `flutter_svg` (avis GitHub existants déjà corrigés dans les versions utilisées).
+- **Fichiers touchés** : aucun fichier de code modifié (audit en lecture seule) ; `docs/JOURNAL_PROJET.md` (cette entrée).
+- **Décisions & justifications** : aucune mise à jour appliquée dans ce lot, l'audit est purement diagnostique. Recommandation : lancer `flutter pub upgrade` (patchs/mineurs) sans urgence particulière ; traiter `google_fonts` 9 et `cupertino_icons` 2 comme des migrations majeures à planifier séparément (changelog à lire avant).
+- **Problèmes rencontrés** : vérification des CVE limitée à la base GitHub Advisory Database (pas d'accès à l'API OSV). Pas de commit.
+
+### T-068 : Consolidation des audits sécurité/qualité/dépendances en fichiers autonomes
+- **Date** : 2026-10-06
+- **Statut** : Terminée
+- **Type** : Documentation
+- **Description** : les audits T-065 (sécurité), T-066 (qualité) et T-067 (dépendances) ont été consolidés en fichiers .md autonomes dans `docs/audits/`, pour être consultables indépendamment du journal.
+- **Fichiers touchés** : `docs/audits/2026-10-06-audit-securite-mobile.md`, `docs/audits/2026-10-06-audit-qualite-mobile.md`, `docs/audits/2026-10-06-audit-dependances-mobile.md` (créés) ; `docs/JOURNAL_PROJET.md` (cette entrée).
+- **Décisions & justifications** : pas de duplication du contenu dans le journal, simple référence croisée vers les fichiers autonomes.
+- **Problèmes rencontrés** : aucun. Pas de commit.
+
+### T-069 : Tests des actions destructives sur un bail (résiliation, renouvellement, signature)
+- **Date** : 2026-10-08
+- **Statut** : Terminée
+- **Type** : Correction
+- **Description** : point de priorité 7 de l'audit qualité T-066 (actions destructives réelles réputées sans couverture). Ajout de `bail_actions_test.dart` (48 tests) qui monte isolément `ResilierBailSheet`, `RenouvelerBailSheet` et `SignerBailScreen` depuis un hôte capturant la valeur de fermeture `IssueActionBail?` : succès, chaque variante d'`ActionBailResult` (400, 403, 404, 500, réseau) et son message, absence de faux succès, verrou anti-double-envoi (second appel, Annuler et retour système ignorés pendant l'envoi), payloads (nouvelle_date_fin toujours envoyée, loyer seulement s'il change, motif nettoyé), PNG réel préfixé, bannière d'arrêt des échéances, et tests unitaires de `decrireEchecActionBail`. Suite complète : 564 → 612 tests, tous verts ; `flutter analyze` inchangé (15 infos connues).
+- **Fichiers touchés** : `test/features/documents/screens/bail_actions_test.dart` (créé) ; `docs/JOURNAL_PROJET.md` (cette entrée).
+- **Décisions & justifications** : faux serveur Dio (`FakeAdapter`) comme `bail_detail_screen_test.dart`, sans paquet de mock. Le verrou est testé en appelant deux fois le callback `onPressed` capturé avant le premier appel, pour éprouver `envoiEnCours` et pas seulement la désactivation visuelle du bouton. Le rechargement `BiensRepository.listLots()` vit dans `BailDetailScreen._apresAction`, pas dans `bail_actions.dart` : il était déjà couvert par `bail_detail_screen_test.dart` (succès et issue incertaine), ce fichier n'a pas été modifié. Contre-épreuves (verrou de `envoyer` et de `_confirmer`, filtre loyer inchangé, rechargement des lots sur issue incertaine) : tests en échec une fois le code neutralisé, code restauré (diff vide sur `lib/`).
+- **Problèmes rencontrés** : l'audit sous-estimait la couverture, puisque `bail_detail_screen_test.dart` couvrait déjà une partie de ces flux en intégration. Aucune « vérification d'accès au bail avant écriture du fichier signature » n'existe dans le code : l'écran n'écrit aucun fichier, le PNG part en mémoire (base64), donc ce point n'a pas pu être testé. Revue Codex : la lecture des sources lui a été refusée par sa politique de sandbox, il a revu le diff seul ; trois remarques retenues (contrôle positif du retour système, matcher réseau renforcé, chemin vérifié dans le test de payload de résiliation). Pas de commit.
