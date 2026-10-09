@@ -171,10 +171,10 @@ class _FicheFichier extends StatelessWidget {
         if (url != null)
           AppButton.primary(
             label: 'Ouvrir',
-            icon: const Icon(
+            icon: Icon(
               LucideIcons.external_link,
               size: 18,
-              color: Colors.white,
+              color: AppColors.primaryForeground,
             ),
             onPressed: () =>
                 ouvrirFichierOuCopier(context, AppConfig.resolveFileUrl(url)),

@@ -274,7 +274,7 @@ class _NouveauContratScreenState extends State<NouveauContratScreen>
         data: Theme.of(context).copyWith(
           colorScheme: ColorScheme.light(
             primary: AppColors.primary,
-            onPrimary: Colors.white,
+            onPrimary: AppColors.primaryForeground,
             onSurface: AppColors.foreground,
           ),
         ),
@@ -691,7 +691,7 @@ class _NouveauContratScreenState extends State<NouveauContratScreen>
         AppButton.primary(
           label: 'Continuer',
           onPressed: _onContinuer,
-          icon: const Icon(LucideIcons.circle_check, size: 18, color: Colors.white),
+          icon: Icon(LucideIcons.circle_check, size: 18, color: AppColors.primaryForeground),
         ),
       ],
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
@@ -138,7 +137,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     Text(
                       'Créez votre espace',
-                      style: GoogleFonts.syne(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: kAuthText,

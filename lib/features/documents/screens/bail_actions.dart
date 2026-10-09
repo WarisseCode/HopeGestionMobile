@@ -394,7 +394,7 @@ Widget _themeCalendrier(BuildContext context, Widget? child) => Theme(
   data: Theme.of(context).copyWith(
     colorScheme: ColorScheme.light(
       primary: AppColors.primary,
-      onPrimary: Colors.white,
+      onPrimary: AppColors.primaryForeground,
       onSurface: AppColors.foreground,
     ),
   ),

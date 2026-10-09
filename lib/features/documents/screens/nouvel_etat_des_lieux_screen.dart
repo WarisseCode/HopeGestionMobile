@@ -130,7 +130,7 @@ class _NouvelEtatDesLieuxScreenState extends State<NouvelEtatDesLieuxScreen> {
                               selectedColor: AppColors.primary,
                               labelStyle: TextStyle(
                                 color: _type == t
-                                    ? Colors.white
+                                    ? AppColors.primaryForeground
                                     : AppColors.foreground,
                                 fontWeight: _type == t
                                     ? FontWeight.bold
@@ -339,15 +339,15 @@ class _NouvelEtatDesLieuxScreenState extends State<NouvelEtatDesLieuxScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
-                      icon: const Icon(
+                      icon: Icon(
                         LucideIcons.circle_check,
                         size: 18,
-                        color: Colors.white,
+                        color: AppColors.primaryForeground,
                       ),
                       label: Text(
                         'Valider l\'état des lieux d\'$_type',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: AppColors.primaryForeground,
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),

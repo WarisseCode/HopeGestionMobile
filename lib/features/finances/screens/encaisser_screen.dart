@@ -368,7 +368,7 @@ class _EncaisserScreenState extends State<EncaisserScreen>
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
               primary: AppColors.primary,
-              onPrimary: Colors.white,
+              onPrimary: AppColors.primaryForeground,
               onSurface: AppColors.foreground,
             ),
           ),
@@ -479,7 +479,7 @@ class _EncaisserScreenState extends State<EncaisserScreen>
           if (receiptUrl != null && receiptUrl.isNotEmpty)
             AppButton.primary(
               label: 'Ouvrir la quittance',
-              icon: const Icon(LucideIcons.file_text, size: 18, color: Colors.white),
+              icon: Icon(LucideIcons.file_text, size: 18, color: AppColors.primaryForeground),
               onPressed: () => ouvrirFichierOuCopier(
                 sheetContext,
                 AppConfig.resolveFileUrl(receiptUrl),
@@ -719,7 +719,7 @@ class _EncaisserScreenState extends State<EncaisserScreen>
         ),
         const SizedBox(height: 24),
 
-        AppButton.primary(label: 'Continuer', onPressed: _onContinuer, icon: const Icon(LucideIcons.circle_check, size: 18, color: Colors.white)),
+        AppButton.primary(label: 'Continuer', onPressed: _onContinuer, icon: Icon(LucideIcons.circle_check, size: 18, color: AppColors.primaryForeground)),
       ],
     );
   }

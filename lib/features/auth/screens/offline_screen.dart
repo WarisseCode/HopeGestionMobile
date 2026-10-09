@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
@@ -35,7 +34,8 @@ class OfflineScreen extends StatelessWidget {
                 Text(
                   'Connexion au serveur impossible',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.syne(
+                  style: TextStyle(
+                    fontFamily: AppTypography.fontFamily,
                     fontSize: 19,
                     fontWeight: FontWeight.w700,
                     color: kAuthText,

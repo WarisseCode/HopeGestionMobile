@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_typography.dart';
@@ -172,7 +171,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   children: [
                     Text(
                       'Vérifiez votre email',
-                      style: GoogleFonts.syne(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: kAuthText,

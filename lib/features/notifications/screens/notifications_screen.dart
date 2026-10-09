@@ -179,7 +179,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         child: Text(
                           '$count',
-                          style: AppTypography.caption(color: Colors.white)
+                          style: AppTypography.caption(color: AppColors.primaryForeground)
                               .copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -258,7 +258,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   backgroundColor: AppColors.card,
                   selectedColor: AppColors.primary,
                   labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.foreground,
+                    color: isSelected ? AppColors.primaryForeground : AppColors.foreground,
                     fontWeight: isSelected
                         ? FontWeight.w600
                         : FontWeight.normal,

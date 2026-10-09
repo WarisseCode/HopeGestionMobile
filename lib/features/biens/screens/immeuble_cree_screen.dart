@@ -86,10 +86,10 @@ class ImmeubleCreeScreen extends StatelessWidget {
 
               AppButton.primary(
                 label: 'Ajouter un lot maintenant',
-                icon: const Icon(
+                icon: Icon(
                   LucideIcons.plus,
                   size: 16,
-                  color: Colors.white,
+                  color: AppColors.primaryForeground,
                 ),
                 onPressed: () => _addLotNow(context),
               ),

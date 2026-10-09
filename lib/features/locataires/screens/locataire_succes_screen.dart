@@ -105,10 +105,10 @@ class LocataireSuccesScreen extends StatelessWidget {
               // Boutons d'action
               AppButton(
                 label: 'Voir mes contacts',
-                icon: const Icon(
+                icon: Icon(
                   LucideIcons.arrow_right,
                   size: 16,
-                  color: Colors.white,
+                  color: AppColors.primaryForeground,
                 ),
                 isFullWidth: true,
                 onPressed: () {

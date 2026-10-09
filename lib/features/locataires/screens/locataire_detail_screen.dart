@@ -418,15 +418,15 @@ class _LocataireDetailScreenState extends State<LocataireDetailScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  icon: const Icon(
+                  icon: Icon(
                     LucideIcons.circle_dollar_sign,
-                    color: Colors.white,
+                    color: AppColors.primaryForeground,
                     size: 18,
                   ),
-                  label: const Text(
+                  label: Text(
                     'Encaisser un loyer pour ce locataire',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.primaryForeground,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -652,7 +652,7 @@ class _ContactTab extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : AppColors.foreground,
+                color: isSelected ? AppColors.primaryForeground : AppColors.foreground,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 12.5,
               ),

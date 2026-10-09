@@ -74,11 +74,11 @@ class ApercuNonEnregistreScreen extends StatelessWidget {
                                 color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
                                   'H',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.primaryForeground,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),

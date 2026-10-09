@@ -48,13 +48,13 @@ class FinancesActionButtons extends StatelessWidget {
                         height: 22,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.8),
+                          border: Border.all(color: AppColors.primaryForeground, width: 1.8),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             r'$',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.primaryForeground,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -65,7 +65,7 @@ class FinancesActionButtons extends StatelessWidget {
                       Text(
                         'Encaisser',
                         style: AppTypography.button(
-                          color: Colors.white,
+                          color: AppColors.primaryForeground,
                           fontSize: 14,
                         ),
                       ),

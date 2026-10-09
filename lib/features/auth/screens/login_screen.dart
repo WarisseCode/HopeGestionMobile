@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
@@ -162,7 +161,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       'Bon retour parmi nous',
-                      style: GoogleFonts.syne(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: kAuthText,

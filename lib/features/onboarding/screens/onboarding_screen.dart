@@ -260,7 +260,8 @@ class _OnboardingPage extends StatelessWidget {
           Text(
             data.title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.syne(
+            style: TextStyle(
+              fontFamily: AppTypography.fontFamily,
               fontSize: 28,
               fontWeight: FontWeight.w700,
               height: 1.15,

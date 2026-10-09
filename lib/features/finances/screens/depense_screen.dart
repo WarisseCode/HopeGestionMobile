@@ -213,7 +213,7 @@ class _DepenseScreenState extends State<DepenseScreen>
         data: Theme.of(context).copyWith(
           colorScheme: ColorScheme.light(
             primary: AppColors.primary,
-            onPrimary: Colors.white,
+            onPrimary: AppColors.primaryForeground,
             onSurface: AppColors.foreground,
           ),
         ),
@@ -744,7 +744,7 @@ class _Chip extends StatelessWidget {
       backgroundColor: AppColors.card,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
-        color: selected ? Colors.white : AppColors.foreground,
+        color: selected ? AppColors.primaryForeground : AppColors.foreground,
         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
         fontSize: 12.5,
       ),

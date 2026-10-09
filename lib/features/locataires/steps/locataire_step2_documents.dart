@@ -52,7 +52,7 @@ class _LocataireStep2DocumentsState extends State<LocataireStep2Documents> {
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
               primary: AppColors.primary,
-              onPrimary: Colors.white,
+              onPrimary: AppColors.primaryForeground,
               onSurface: AppColors.foreground,
             ),
           ),

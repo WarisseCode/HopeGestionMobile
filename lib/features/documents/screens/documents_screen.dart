@@ -292,8 +292,8 @@ class _EnTete extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Center(
-                child: Icon(LucideIcons.plus, size: 20, color: Colors.white),
+              child: Center(
+                child: Icon(LucideIcons.plus, size: 20, color: AppColors.primaryForeground),
               ),
             ),
           ),

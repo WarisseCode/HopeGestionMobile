@@ -127,10 +127,10 @@ class _AvatarPickerState extends State<AvatarPicker> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       LucideIcons.camera,
                       size: 14,
-                      color: Colors.white,
+                      color: AppColors.primaryForeground,
                     ),
                   ),
                 ),

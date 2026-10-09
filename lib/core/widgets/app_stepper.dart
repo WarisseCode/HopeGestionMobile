@@ -126,7 +126,7 @@ class _StepIcon extends StatelessWidget {
     switch (state) {
       case _StepState.active:
         bg = AppColors.primary;
-        fg = Colors.white;
+        fg = AppColors.primaryForeground;
         icon = Icon(item.icon, size: 16, color: fg);
         break;
       case _StepState.done:
@@ -256,7 +256,7 @@ class AppStepperNavBar extends StatelessWidget {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.primaryForeground,
                 disabledBackgroundColor: AppColors.muted,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),

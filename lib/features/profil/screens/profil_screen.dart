@@ -211,10 +211,10 @@ class _ProfilScreenState extends State<ProfilScreen> {
                                         width: 2,
                                       ),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       LucideIcons.shield_check,
                                       size: 14,
-                                      color: Colors.white,
+                                      color: AppColors.primaryForeground,
                                     ),
                                   ),
                                 ),
