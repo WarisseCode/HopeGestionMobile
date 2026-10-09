@@ -369,6 +369,7 @@ class _NouveauContratScreenState extends State<NouveauContratScreen>
       conditionsParticulieres: _conditionsController.text,
     );
     if (!mounted) return;
+    libererVerrouEnvoi();
     if (sheetContext.mounted) Navigator.of(sheetContext).pop();
 
     switch (result) {

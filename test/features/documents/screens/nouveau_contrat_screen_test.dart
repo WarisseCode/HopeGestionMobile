@@ -9,6 +9,7 @@ import 'package:hope_gestion_mobile/core/network/api_client.dart';
 import 'package:hope_gestion_mobile/core/network/token_storage.dart';
 import 'package:hope_gestion_mobile/core/theme/app_theme.dart';
 import 'package:hope_gestion_mobile/core/theme/theme_controller.dart';
+import 'package:hope_gestion_mobile/core/widgets/app_button.dart';
 import 'package:hope_gestion_mobile/features/biens/data/biens_repository.dart';
 import 'package:hope_gestion_mobile/features/documents/data/baux_repository.dart';
 import 'package:hope_gestion_mobile/features/documents/screens/bail_detail_screen.dart';
@@ -52,6 +53,13 @@ Map<String, dynamic> _locataireJson({
   'statut': statut,
 };
 
+const _bailCreeJson = <String, dynamic>{
+  'id': 42,
+  'reference_bail': 'BAIL-2026-0042',
+  'loyer_actuel': '185000.00',
+  'statut': 'actif',
+};
+
 class _Serveur {
   List<Map<String, dynamic>> lots = [
     _lotJson(id: 1, reference: 'A1'),
@@ -70,14 +78,17 @@ class _Serveur {
     },
   ];
 
-  Map<String, dynamic> creerResponse = {
-    'id': 42,
-    'reference_bail': 'BAIL-2026-0042',
-    'loyer_actuel': '185000.00',
-    'statut': 'actif',
-  };
+  Map<String, dynamic> creerResponse = _bailCreeJson;
   int creerStatusCode = 201;
   DioExceptionType? creerExceptionType;
+
+  /// Le prochain POST /locations réussit (201) : sert au second envoi
+  /// après un échec.
+  void reussirProchainEnvoi() {
+    creerResponse = _bailCreeJson;
+    creerStatusCode = 201;
+    creerExceptionType = null;
+  }
 
   final requetes = <RequestOptions>[];
   final creerAppels = <Map<String, dynamic>>[];
@@ -179,6 +190,38 @@ Future<void> _ouvrirRecap(WidgetTester tester) async {
 Future<void> _confirmer(WidgetTester tester) async {
   await tester.tap(find.text('Confirmer'));
   await _settle(tester);
+}
+
+final _boutonConfirmer = find.byWidgetPredicate(
+  (w) => w is AppButton && w.label == 'Confirmer',
+  description: 'AppButton « Confirmer »',
+);
+
+/// Après un échec, le verrou d'envoi doit être libéré : le récapitulatif
+/// rouvert propose un « Confirmer » actif (ni chargement ni désactivation)
+/// et un second envoi aboutit normalement.
+Future<void> _verifierSecondEnvoiPossible(
+  WidgetTester tester,
+  _Serveur serveur,
+) async {
+  await tester.pumpAndSettle(); // fin de la fermeture du récapitulatif
+  serveur.reussirProchainEnvoi();
+  // Pas de pumpAndSettle : avec un verrou non libéré, l'indicateur de
+  // chargement tournerait sans fin et masquerait l'assertion explicite.
+  await tester.tap(find.text('Continuer'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+  expect(find.text('Confirmer le bail'), findsOneWidget);
+
+  final confirmer = tester.widget<AppButton>(_boutonConfirmer);
+  expect(confirmer.isLoading, isFalse);
+  expect(confirmer.onPressed, isNotNull);
+
+  await tester.tap(_boutonConfirmer);
+  await _settle(tester);
+
+  expect(serveur.appelsSur('/locations', 'POST'), 2);
+  expect(find.textContaining('BAIL-2026-0042'), findsOneWidget);
 }
 
 void main() {
@@ -383,6 +426,88 @@ void main() {
       expect(find.text('Nouveau contrat de bail'), findsOneWidget);
       expect(find.textContaining('peut-être tout de même été créé'), findsOneWidget);
       expect(serveur.appelsSur('/locations', 'POST'), 1);
+    });
+  });
+
+  group('verrou libéré après échec, second envoi possible', () {
+    testWidgets('lot déjà affecté → autre lot, second envoi abouti', (tester) async {
+      final serveur = await _versLeFormulaire(
+        tester,
+        configurer: (s) {
+          s.creerStatusCode = 400;
+          s.creerResponse = {'message': 'Ce lot a déjà une affectation active'};
+        },
+      );
+      await _ouvrirRecap(tester);
+      await _confirmer(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Choisir un lot'), findsOneWidget);
+
+      // Le parcours repart du choix du lot : C3 (propriétaire 9).
+      await tester.tap(find.text('C3 · Résidence Palmiers'));
+      await tester.pump();
+      await tester.tap(find.text('Fatou Ndiaye'));
+      await tester.pump();
+      await _verifierSecondEnvoiPossible(tester, serveur);
+      expect(serveur.creerAppels.last['lot_id'], 3);
+    });
+
+    testWidgets('400 générique → second envoi abouti', (tester) async {
+      final serveur = await _versLeFormulaire(
+        tester,
+        configurer: (s) {
+          s.creerStatusCode = 400;
+          s.creerResponse = {'message': 'Le loyer est requis pour une location'};
+        },
+      );
+      await _ouvrirRecap(tester);
+      await _confirmer(tester);
+      expect(find.textContaining('Le serveur a refusé ces informations'), findsOneWidget);
+
+      await _verifierSecondEnvoiPossible(tester, serveur);
+    });
+
+    testWidgets('403 → second envoi abouti', (tester) async {
+      final serveur = await _versLeFormulaire(
+        tester,
+        configurer: (s) {
+          s.creerStatusCode = 403;
+          s.creerResponse = {'message': 'Accès refusé'};
+        },
+      );
+      await _ouvrirRecap(tester);
+      await _confirmer(tester);
+      expect(find.textContaining("n'avez pas l'autorisation de créer un bail"), findsOneWidget);
+
+      await _verifierSecondEnvoiPossible(tester, serveur);
+    });
+
+    testWidgets('erreur réseau → second envoi manuel abouti', (tester) async {
+      final serveur = await _versLeFormulaire(
+        tester,
+        configurer: (s) => s.creerExceptionType = DioExceptionType.connectionError,
+      );
+      await _ouvrirRecap(tester);
+      await _confirmer(tester);
+      expect(find.textContaining('peut-être tout de même été créé'), findsOneWidget);
+
+      await _verifierSecondEnvoiPossible(tester, serveur);
+    });
+
+    testWidgets('5xx → second envoi manuel abouti', (tester) async {
+      final serveur = await _versLeFormulaire(
+        tester,
+        configurer: (s) {
+          s.creerStatusCode = 500;
+          s.creerResponse = {'message': 'Erreur interne'};
+        },
+      );
+      await _ouvrirRecap(tester);
+      await _confirmer(tester);
+      expect(find.text('Nouveau contrat de bail'), findsOneWidget);
+      expect(find.textContaining('peut-être tout de même été créé'), findsOneWidget);
+
+      await _verifierSecondEnvoiPossible(tester, serveur);
     });
   });
 
