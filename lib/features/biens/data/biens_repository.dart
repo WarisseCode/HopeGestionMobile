@@ -147,18 +147,18 @@ class BiensRepository extends ChangeNotifier {
           if (quartier != null && quartier.isNotEmpty) 'quartier': quartier,
           if (description != null && description.isNotEmpty)
             'description': description,
-          if (latitude != null) 'latitude': latitude,
-          if (longitude != null) 'longitude': longitude,
-          if (gestionnaireId != null) 'gestionnaire_id': gestionnaireId,
+          'latitude': ?latitude,
+          'longitude': ?longitude,
+          'gestionnaire_id': ?gestionnaireId,
           if (statut != null && statut.isNotEmpty) 'statut': statut,
           if (photos != null && photos.isNotEmpty) 'photos': photos,
           if (photo != null && photo.isNotEmpty) 'photo': photo,
           if (videoUrl != null && videoUrl.isNotEmpty) 'video_url': videoUrl,
           if (planMasseUrl != null && planMasseUrl.isNotEmpty)
             'plan_masse_url': planMasseUrl,
-          if (nombreEtages != null) 'nombre_etages': nombreEtages,
-          if (totalLots != null) 'total_lots': totalLots,
-          if (ownerId != null) 'owner_id': ownerId,
+          'nombre_etages': ?nombreEtages,
+          'total_lots': ?totalLots,
+          'owner_id': ?ownerId,
         },
       );
       final id = response.data?['id'];
@@ -290,19 +290,18 @@ class BiensRepository extends ChangeNotifier {
           if (type != null && type.isNotEmpty) 'type': type,
           if (etage != null && etage.isNotEmpty) 'etage': etage,
           if (bloc != null && bloc.isNotEmpty) 'bloc': bloc,
-          if (superficie != null) 'superficie': superficie,
-          if (nbPieces != null) 'nbPieces': nbPieces,
-          if (loyer != null) 'loyer': loyer,
-          if (charges != null) 'charges': charges,
+          'superficie': ?superficie,
+          'nbPieces': ?nbPieces,
+          'loyer': ?loyer,
+          'charges': ?charges,
           if (periodicite != null && periodicite.isNotEmpty)
             'periodicite': periodicite,
-          if (caution != null) 'caution': caution,
-          if (avance != null) 'avance': avance,
-          if (prixVente != null) 'prix_vente': prixVente,
+          'caution': ?caution,
+          'avance': ?avance,
+          'prix_vente': ?prixVente,
           if (modaliteVente != null && modaliteVente.isNotEmpty)
             'modalite_vente': modaliteVente,
-          if (dureeEchelonnement != null)
-            'duree_echelonnement': dureeEchelonnement,
+          'duree_echelonnement': ?dureeEchelonnement,
           if (photos != null && photos.isNotEmpty) 'photos': photos,
           if (statut != null && statut.isNotEmpty) 'statut': statut,
           if (dateDisponibilite != null && dateDisponibilite.isNotEmpty)

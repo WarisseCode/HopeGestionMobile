@@ -147,7 +147,7 @@ class LocatairesRepository extends ChangeNotifier {
           if (adresseActuelle != null && adresseActuelle.isNotEmpty)
             'adresse_actuelle': adresseActuelle,
           'paiement_echelonne': paiementEchelonne,
-          if (ownerId != null) 'owner_id': ownerId,
+          'owner_id': ?ownerId,
           if (photoProfilUrl != null && photoProfilUrl.isNotEmpty)
             'photo_profil_url': photoProfilUrl,
         },
