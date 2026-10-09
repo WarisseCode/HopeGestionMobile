@@ -70,7 +70,7 @@ class _DashboardFluxChartState extends State<DashboardFluxChart> {
                   ),
                   const SizedBox(width: 10),
                   _buildLegendItem(
-                    color: const Color(0x556B7D7A),
+                    color: AppColors.mutedForeground.withValues(alpha: 0.33),
                     label: AppStrings.t('Sorties'),
                   ),
                 ],
@@ -142,8 +142,12 @@ class _DashboardFluxChartState extends State<DashboardFluxChart> {
                                   ? day.outAmount / maxAmount
                                   : 0,
                               color: isSelected
-                                  ? const Color(0x886B7D7A)
-                                  : const Color(0x356B7D7A),
+                                  ? AppColors.mutedForeground.withValues(
+                                      alpha: 0.53,
+                                    )
+                                  : AppColors.mutedForeground.withValues(
+                                      alpha: 0.21,
+                                    ),
                             ),
                           ],
                         ),

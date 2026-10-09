@@ -14,8 +14,12 @@ class FinancesBalanceCard extends StatelessWidget {
 
   final FinanceStats stats;
 
-  static const _labelColor = Color(0xFF708C86);
-  static const _noteColor = Color(0xFF8BA8A2);
+  // Carte volontairement sombre dans les deux modes : elle puise dans la
+  // palette sombre du thème (surface `card`, textes et statuts lisibles sur
+  // fond sombre) plutôt que dans les getters dynamiques `AppColors`.
+  static final _surface = darkPalette.card;
+  static final _labelColor = darkPalette.mutedForeground;
+  static final _noteColor = darkPalette.mutedForeground;
 
   @override
   Widget build(BuildContext context) {
@@ -23,11 +27,11 @@ class FinancesBalanceCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1F1C), // Fond sombre verdâtre feutré
+        color: _surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0E1F1C).withValues(alpha: 0.25),
+            color: darkPalette.background.withValues(alpha: 0.25),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -66,7 +70,7 @@ class FinancesBalanceCard extends StatelessWidget {
                 child: _Chiffre(
                   valeur: formatMontant(stats.encaisse),
                   libelle: 'Encaissé',
-                  couleur: const Color(0xFF00C49F),
+                  couleur: darkPalette.positive,
                 ),
               ),
               const SizedBox(width: 12),
@@ -82,7 +86,7 @@ class FinancesBalanceCard extends StatelessWidget {
                 child: _Chiffre(
                   valeur: formatMontant(stats.resteAEncaisser),
                   libelle: 'Reste à encaisser',
-                  couleur: const Color(0xFFF5B754),
+                  couleur: darkPalette.warning,
                 ),
               ),
             ],

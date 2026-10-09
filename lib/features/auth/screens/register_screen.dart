@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
 import '../data/auth_results.dart';
 import '../widgets/auth_widgets.dart';
@@ -84,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF7F5),
+      backgroundColor: kAuthBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -96,9 +97,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 8),
               Text(
                 'La gestion immobilière, simplement.',
-                style: GoogleFonts.ibmPlexSans(
+                style: TextStyle(
+                  fontFamily: AppTypography.fontFamily,
                   fontSize: 13,
-                  color: kDark.withValues(alpha: 0.5),
+                  color: kAuthText.withValues(alpha: 0.5),
                 ),
               ),
 
@@ -126,10 +128,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       alignment: Alignment.topRight,
                       child: Text(
                         'ÉTAPE 1 SUR 1',
-                        style: GoogleFonts.ibmPlexSans(
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
                           fontSize: 11,
                           letterSpacing: 1.4,
-                          color: kDark.withValues(alpha: 0.3),
+                          color: kAuthText.withValues(alpha: 0.3),
                         ),
                       ),
                     ),
@@ -138,15 +141,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: GoogleFonts.syne(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: kDark,
+                        color: kAuthText,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Commencez à piloter votre activité immobilière depuis votre mobile.',
-                      style: GoogleFonts.ibmPlexSans(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 13,
-                        color: kDark.withValues(alpha: 0.55),
+                        color: kAuthText.withValues(alpha: 0.55),
                         height: 1.5,
                       ),
                     ),
@@ -225,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                           size: 20,
-                          color: kDark.withValues(alpha: 0.4),
+                          color: kAuthText.withValues(alpha: 0.4),
                         ),
                       ),
                     ),
@@ -241,11 +245,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 20,
                             height: 20,
                             decoration: BoxDecoration(
-                              color: _terms ? kTeal : Colors.transparent,
+                              color: _terms ? kAuthPrimary : Colors.transparent,
                               border: Border.all(
                                 color: _terms
-                                    ? kTeal
-                                    : kDark.withValues(alpha: 0.25),
+                                    ? kAuthPrimary
+                                    : kAuthText.withValues(alpha: 0.25),
                                 width: 1.5,
                               ),
                               borderRadius: BorderRadius.circular(5),
@@ -262,9 +266,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           Expanded(
                             child: Text(
                               "J'accepte les conditions d'utilisation et la politique de confidentialité.",
-                              style: GoogleFonts.ibmPlexSans(
+                              style: TextStyle(
+                                fontFamily: AppTypography.fontFamily,
                                 fontSize: 12,
-                                color: kDark.withValues(alpha: 0.6),
+                                color: kAuthText.withValues(alpha: 0.6),
                                 height: 1.5,
                               ),
                             ),
@@ -276,7 +281,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _error!,
-                        style: GoogleFonts.ibmPlexSans(
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
                           fontSize: 12,
                           color: Colors.redAccent,
                         ),
@@ -292,7 +298,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: ElevatedButton(
                         onPressed: _loading ? null : _register,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kTeal,
+                          backgroundColor: kAuthPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -313,7 +319,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 children: [
                                   Text(
                                     'Créer mon compte',
-                                    style: GoogleFonts.ibmPlexSans(
+                                    style: TextStyle(
+                                      fontFamily: AppTypography.fontFamily,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white,
@@ -348,17 +355,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             children: [
                               TextSpan(
                                 text: 'Vous avez déjà un compte ? ',
-                                style: GoogleFonts.ibmPlexSans(
+                                style: TextStyle(
+                                  fontFamily: AppTypography.fontFamily,
                                   fontSize: 13,
-                                  color: kDark.withValues(alpha: 0.55),
+                                  color: kAuthText.withValues(alpha: 0.55),
                                 ),
                               ),
                               TextSpan(
                                 text: 'Se connecter',
-                                style: GoogleFonts.ibmPlexSans(
+                                style: TextStyle(
+                                  fontFamily: AppTypography.fontFamily,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: kTeal,
+                                  color: kAuthPrimary,
                                 ),
                               ),
                             ],

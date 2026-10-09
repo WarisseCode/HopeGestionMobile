@@ -74,9 +74,9 @@ class _AuthLoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFEAF7F5),
-      body: Center(child: CircularProgressIndicator(color: kTeal)),
+    return Scaffold(
+      backgroundColor: kAuthBackground,
+      body: Center(child: CircularProgressIndicator(color: kAuthPrimary)),
     );
   }
 }

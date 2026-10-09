@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
 import '../data/auth_results.dart';
 import '../widgets/auth_widgets.dart';
@@ -86,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF7F5),
+      backgroundColor: kAuthBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -98,9 +99,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               Text(
                 'La gestion immobilière, simplement.',
-                style: GoogleFonts.ibmPlexSans(
+                style: TextStyle(
+                  fontFamily: AppTypography.fontFamily,
                   fontSize: 13,
-                  color: kDark.withValues(alpha: 0.5),
+                  color: kAuthText.withValues(alpha: 0.5),
                 ),
               ),
               const SizedBox(height: 12),
@@ -118,17 +120,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           width: 7,
                           height: 7,
-                          decoration: const BoxDecoration(
-                            color: kTeal,
+                          decoration: BoxDecoration(
+                            color: kAuthPrimary,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           l,
-                          style: GoogleFonts.ibmPlexSans(
+                          style: TextStyle(
+                            fontFamily: AppTypography.fontFamily,
                             fontSize: 12,
-                            color: kDark.withValues(alpha: 0.55),
+                            color: kAuthText.withValues(alpha: 0.55),
                           ),
                         ),
                       ],
@@ -162,15 +165,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: GoogleFonts.syne(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: kDark,
+                        color: kAuthText,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Connectez-vous pour gérer votre agence et suivre vos activités.',
-                      style: GoogleFonts.ibmPlexSans(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 13,
-                        color: kDark.withValues(alpha: 0.55),
+                        color: kAuthText.withValues(alpha: 0.55),
                         height: 1.5,
                       ),
                     ),
@@ -194,10 +198,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         const AuthFieldLabel('Mot de passe'),
                         Text(
                           'Mot de passe oublié ?',
-                          style: GoogleFonts.ibmPlexSans(
+                          style: TextStyle(
+                            fontFamily: AppTypography.fontFamily,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: kTeal,
+                            color: kAuthPrimary,
                           ),
                         ),
                       ],
@@ -215,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                           size: 20,
-                          color: kDark.withValues(alpha: 0.4),
+                          color: kAuthText.withValues(alpha: 0.4),
                         ),
                       ),
                     ),
@@ -223,7 +228,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _error!,
-                        style: GoogleFonts.ibmPlexSans(
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
                           fontSize: 12,
                           color: Colors.redAccent,
                         ),
@@ -239,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _loading ? null : _login,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kTeal,
+                          backgroundColor: kAuthPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -260,7 +266,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 children: [
                                   Text(
                                     'Se connecter',
-                                    style: GoogleFonts.ibmPlexSans(
+                                    style: TextStyle(
+                                      fontFamily: AppTypography.fontFamily,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white,
@@ -299,17 +306,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               TextSpan(
                                 text: "Vous n'avez pas encore de compte ? ",
-                                style: GoogleFonts.ibmPlexSans(
+                                style: TextStyle(
+                                  fontFamily: AppTypography.fontFamily,
                                   fontSize: 13,
-                                  color: kDark.withValues(alpha: 0.55),
+                                  color: kAuthText.withValues(alpha: 0.55),
                                 ),
                               ),
                               TextSpan(
                                 text: "S'Inscrire",
-                                style: GoogleFonts.ibmPlexSans(
+                                style: TextStyle(
+                                  fontFamily: AppTypography.fontFamily,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: kTeal,
+                                  color: kAuthPrimary,
                                 ),
                               ),
                             ],
@@ -326,14 +335,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         Icon(
                           Icons.shield_outlined,
                           size: 14,
-                          color: kDark.withValues(alpha: 0.35),
+                          color: kAuthText.withValues(alpha: 0.35),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Vos données sont protégées et sécurisées',
-                          style: GoogleFonts.ibmPlexSans(
+                          style: TextStyle(
+                            fontFamily: AppTypography.fontFamily,
                             fontSize: 11,
-                            color: kDark.withValues(alpha: 0.35),
+                            color: kAuthText.withValues(alpha: 0.35),
                           ),
                         ),
                       ],

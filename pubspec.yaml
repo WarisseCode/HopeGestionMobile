@@ -34,6 +34,9 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  # Ne sert plus qu'à Syne (logo-texte AuthLogo/onboarding et titres des
+  # écrans d'auth) : le reste de l'app utilise DejaVu Sans, police locale
+  # (voir la section fonts: plus bas). À retirer avec le chantier logo.
   google_fonts: ^8.2.1
   flutter_lucide: ^1.46.0
 
@@ -110,22 +113,17 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
+  # Police de la charte graphique : DejaVu Sans 2.37, auto-hébergée (licence
+  # libre Bitstream Vera, modifications DejaVu dans le domaine public, voir
+  # assets/fonts/DejaVuSans-LICENSE.txt). Seules les graisses Regular (400)
+  # et Bold (700) existent : les w500/w600 encore demandés par le code sont
+  # rendus avec la graisse disponible la plus proche (400 ou 700).
+  fonts:
+    - family: DejaVu Sans
+      fonts:
+        - asset: assets/fonts/DejaVuSans.ttf
+        - asset: assets/fonts/DejaVuSans-Bold.ttf
+          weight: 700
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

@@ -4,11 +4,32 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
 import '../data/auth_results.dart';
 
+/// Couleurs du logo-texte [AuthLogo] (et de son équivalent dans
+/// `OnboardingScreen`) : volontairement inchangées, le logo fait l'objet
+/// d'un chantier séparé. Ne pas les réutiliser ailleurs : utiliser
+/// [kAuthPrimary], [kAuthText] et [kAuthBackground].
 const Color kTeal = Color(0xFF00BFA5);
 const Color kDark = Color(0xFF0E1F1C);
+
+/// Couleurs des écrans d'authentification et d'onboarding (hors logo).
+///
+/// Ces écrans restent toujours clairs, quel que soit le mode choisi : le
+/// logo-texte (sombre sur fond clair) y est posé directement sur le fond et
+/// deviendrait illisible sur le fond sombre. Ils puisent donc dans la
+/// palette claire du thème plutôt que dans les getters dynamiques
+/// `AppColors`. Le fond reprend `secondary` (bleu pâle `#EDF6FA`, fond doux
+/// sur mobile) qui remplace l'ancien vert pâle `#EAF7F5` ; la carte de
+/// formulaire posée dessus reste blanche.
+final Color kAuthPrimary = lightPalette.primary;
+final Color kAuthText = lightPalette.foreground;
+final Color kAuthBackground = lightPalette.secondary;
+final Color kAuthInputFill = lightPalette.inputFill;
+final Color kAuthInputBorder = lightPalette.inputBorder;
 
 // ── Logo ──────────────────────────────────────────────────────────────────────
 
@@ -70,10 +91,11 @@ class AuthFieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.ibmPlexSans(
+      style: TextStyle(
+        fontFamily: AppTypography.fontFamily,
         fontSize: 13,
         fontWeight: FontWeight.w500,
-        color: kDark,
+        color: kAuthText,
       ),
     );
   }
@@ -105,17 +127,22 @@ class AuthTextField extends StatelessWidget {
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboardType,
-      style: GoogleFonts.ibmPlexSans(fontSize: 14, color: kDark),
+      style: TextStyle(
+        fontFamily: AppTypography.fontFamily,
+        fontSize: 14,
+        color: kAuthText,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.ibmPlexSans(
+        hintStyle: TextStyle(
+          fontFamily: AppTypography.fontFamily,
           fontSize: 14,
-          color: kDark.withValues(alpha: 0.35),
+          color: kAuthText.withValues(alpha: 0.35),
         ),
         prefixIcon: Icon(
           prefixIcon,
           size: 18,
-          color: kDark.withValues(alpha: 0.4),
+          color: kAuthText.withValues(alpha: 0.4),
         ),
         suffixIcon: suffix,
         contentPadding: const EdgeInsets.symmetric(
@@ -123,18 +150,18 @@ class AuthTextField extends StatelessWidget {
           horizontal: 16,
         ),
         filled: true,
-        fillColor: const Color(0xFFF6F9F8),
+        fillColor: kAuthInputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFDDE6E4)),
+          borderSide: BorderSide(color: kAuthInputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFDDE6E4)),
+          borderSide: BorderSide(color: kAuthInputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: kTeal, width: 1.5),
+          borderSide: BorderSide(color: kAuthPrimary, width: 1.5),
         ),
       ),
     );
@@ -150,19 +177,20 @@ class AuthOrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Divider(color: kDark.withValues(alpha: 0.12))),
+        Expanded(child: Divider(color: kAuthText.withValues(alpha: 0.12))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             'OU',
-            style: GoogleFonts.ibmPlexSans(
+            style: TextStyle(
+              fontFamily: AppTypography.fontFamily,
               fontSize: 11,
               letterSpacing: 1.2,
-              color: kDark.withValues(alpha: 0.35),
+              color: kAuthText.withValues(alpha: 0.35),
             ),
           ),
         ),
-        Expanded(child: Divider(color: kDark.withValues(alpha: 0.12))),
+        Expanded(child: Divider(color: kAuthText.withValues(alpha: 0.12))),
       ],
     );
   }
@@ -231,21 +259,25 @@ class _AuthGoogleButtonState extends State<AuthGoogleButton> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          side: BorderSide(color: kDark.withValues(alpha: 0.15)),
+          side: BorderSide(color: kAuthText.withValues(alpha: 0.15)),
         ),
         icon: _loading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: kTeal),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: kAuthPrimary,
+                ),
               )
             : const _GoogleIcon(),
         label: Text(
           widget.label,
-          style: GoogleFonts.ibmPlexSans(
+          style: TextStyle(
+            fontFamily: AppTypography.fontFamily,
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: kDark,
+            color: kAuthText,
           ),
         ),
       ),

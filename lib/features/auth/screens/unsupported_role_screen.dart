@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../widgets/auth_widgets.dart';
 
 /// Affiché quand la connexion (ou la session restaurée) aboutit à un rôle
@@ -14,7 +15,7 @@ class UnsupportedRoleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF7F5),
+      backgroundColor: kAuthBackground,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -27,7 +28,7 @@ class UnsupportedRoleScreen extends StatelessWidget {
                 Icon(
                   Icons.block_rounded,
                   size: 40,
-                  color: kDark.withValues(alpha: 0.35),
+                  color: kAuthText.withValues(alpha: 0.35),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -36,7 +37,7 @@ class UnsupportedRoleScreen extends StatelessWidget {
                   style: GoogleFonts.syne(
                     fontSize: 19,
                     fontWeight: FontWeight.w700,
-                    color: kDark,
+                    color: kAuthText,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -44,9 +45,10 @@ class UnsupportedRoleScreen extends StatelessWidget {
                   'Cette application est réservée aux gestionnaires. '
                   'Rendez-vous sur hopegestion.com pour accéder à votre espace.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.ibmPlexSans(
+                  style: TextStyle(
+                    fontFamily: AppTypography.fontFamily,
                     fontSize: 13,
-                    color: kDark.withValues(alpha: 0.55),
+                    color: kAuthText.withValues(alpha: 0.55),
                     height: 1.5,
                   ),
                 ),

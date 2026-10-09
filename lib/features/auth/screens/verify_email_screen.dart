@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
 import '../data/auth_results.dart';
 import '../widgets/auth_widgets.dart';
@@ -144,7 +145,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF7F5),
+      backgroundColor: kAuthBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -174,15 +175,16 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       style: GoogleFonts.syne(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
-                        color: kDark,
+                        color: kAuthText,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Entrez le code à 6 chiffres envoyé à ${widget.email}.',
-                      style: GoogleFonts.ibmPlexSans(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 13,
-                        color: kDark.withValues(alpha: 0.55),
+                        color: kAuthText.withValues(alpha: 0.55),
                         height: 1.5,
                       ),
                     ),
@@ -202,18 +204,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: kTeal.withValues(alpha: 0.08),
+                          color: kAuthPrimary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: kTeal.withValues(alpha: 0.3)),
+                          border: Border.all(color: kAuthPrimary.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               _alreadyVerifiedMessage!,
-                              style: GoogleFonts.ibmPlexSans(
+                              style: TextStyle(
+                                fontFamily: AppTypography.fontFamily,
                                 fontSize: 12,
-                                color: kDark,
+                                color: kAuthText,
                                 height: 1.4,
                               ),
                             ),
@@ -232,10 +235,11 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                                 ),
                                 child: Text(
                                   'Aller à la connexion',
-                                  style: GoogleFonts.ibmPlexSans(
+                                  style: TextStyle(
+                                    fontFamily: AppTypography.fontFamily,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: kTeal,
+                                    color: kAuthPrimary,
                                   ),
                                 ),
                               ),
@@ -247,7 +251,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       const SizedBox(height: 12),
                       Text(
                         _error!,
-                        style: GoogleFonts.ibmPlexSans(
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
                           fontSize: 12,
                           color: Colors.redAccent,
                         ),
@@ -261,7 +266,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kTeal,
+                          backgroundColor: kAuthPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -279,7 +284,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                               )
                             : Text(
                                 'Vérifier',
-                                style: GoogleFonts.ibmPlexSans(
+                                style: TextStyle(
+                                  fontFamily: AppTypography.fontFamily,
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -295,10 +301,11 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                           _cooldownSeconds > 0
                               ? 'Renvoyer le code (${_cooldownSeconds}s)'
                               : 'Renvoyer le code',
-                          style: GoogleFonts.ibmPlexSans(
+                          style: TextStyle(
+                            fontFamily: AppTypography.fontFamily,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: kTeal,
+                            color: kAuthPrimary,
                           ),
                         ),
                       ),

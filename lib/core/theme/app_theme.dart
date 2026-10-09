@@ -15,6 +15,9 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      // Police par défaut des textes non stylés explicitement (Text sans
+      // style, champs, SnackBar…), alignée sur AppTypography.
+      fontFamily: AppTypography.fontFamily,
       scaffoldBackgroundColor: p.background,
       primaryColor: p.primary,
       colorScheme: ColorScheme(

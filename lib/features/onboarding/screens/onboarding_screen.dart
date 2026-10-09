@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../models/onboarding_page_data.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../auth/widgets/auth_widgets.dart';
 
 class OnboardingScreen extends StatefulWidget {
   /// Si fourni, appelé à la place de la navigation interne vers l'écran de
@@ -21,9 +23,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _current = 0;
 
-  static const _teal = Color(0xFF00BFA5);
-  static const _bgColor = Color(0xFFEAF7F5);
-  static const _dark = Color(0xFF0E1F1C);
+  // Couleurs du logo-texte de la barre du haut uniquement : inchangées
+  // (chantier logo séparé). Le reste de l'écran utilise kAuthPrimary,
+  // kAuthText et kAuthBackground (palette claire du thème, voir
+  // auth_widgets.dart).
+  static const _logoTeal = kTeal;
+  static const _logoDark = kDark;
 
   void _goNext() {
     if (_current < OnboardingPageData.pages.length - 1) {
@@ -57,7 +62,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: kAuthBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -71,7 +76,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: _teal,
+                      color: _logoTeal,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
@@ -89,7 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           style: GoogleFonts.syne(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: _dark,
+                            color: _logoDark,
                           ),
                         ),
                         TextSpan(
@@ -97,7 +102,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           style: GoogleFonts.syne(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: _teal,
+                            color: _logoTeal,
                           ),
                         ),
                       ],
@@ -110,10 +115,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onTap: _skip,
                       child: Text(
                         'Passer',
-                        style: GoogleFonts.ibmPlexSans(
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: _dark.withValues(alpha: 0.5),
+                          color: kAuthText.withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -148,8 +154,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     height: 8,
                     decoration: BoxDecoration(
                       color: i == _current
-                          ? _teal
-                          : _teal.withValues(alpha: 0.25),
+                          ? kAuthPrimary
+                          : kAuthPrimary.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -166,7 +172,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: _goNext,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
+                    backgroundColor: kAuthPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -178,7 +184,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     children: [
                       Text(
                         OnboardingPageData.pages[_current].buttonLabel,
-                        style: GoogleFonts.ibmPlexSans(
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -201,9 +208,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.only(top: 14, bottom: 20),
               child: Text(
                 OnboardingPageData.pages[_current].footerLabel,
-                style: GoogleFonts.ibmPlexSans(
+                style: TextStyle(
+                  fontFamily: AppTypography.fontFamily,
                   fontSize: 12,
-                  color: _dark.withValues(alpha: 0.45),
+                  color: kAuthText.withValues(alpha: 0.45),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -220,9 +228,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class _OnboardingPage extends StatelessWidget {
   final OnboardingPageData data;
   const _OnboardingPage({required this.data});
-
-  static const _teal = Color(0xFF00BFA5);
-  static const _dark = Color(0xFF0E1F1C);
 
   @override
   Widget build(BuildContext context) {
@@ -241,11 +246,12 @@ class _OnboardingPage extends StatelessWidget {
           // Over-title
           Text(
             data.overTitle,
-            style: GoogleFonts.ibmPlexSans(
+            style: TextStyle(
+              fontFamily: AppTypography.fontFamily,
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.8,
-              color: _teal,
+              color: kAuthPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -258,7 +264,7 @@ class _OnboardingPage extends StatelessWidget {
               fontSize: 28,
               fontWeight: FontWeight.w700,
               height: 1.15,
-              color: _dark,
+              color: kAuthText,
             ),
           ),
           const SizedBox(height: 16),
@@ -267,10 +273,11 @@ class _OnboardingPage extends StatelessWidget {
           Text(
             data.subtitle,
             textAlign: TextAlign.center,
-            style: GoogleFonts.ibmPlexSans(
+            style: TextStyle(
+              fontFamily: AppTypography.fontFamily,
               fontSize: 14,
               height: 1.6,
-              color: _dark.withValues(alpha: 0.55),
+              color: kAuthText.withValues(alpha: 0.55),
             ),
           ),
           const SizedBox(height: 20),

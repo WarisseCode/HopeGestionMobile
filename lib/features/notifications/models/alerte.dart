@@ -45,9 +45,9 @@ enum AlerteCategorie {
       case AlerteCategorie.impaye:
         return AppColors.warning;
       case AlerteCategorie.contrat:
-        return const Color(0xFF3B82F6);
+        return AppColors.info;
       case AlerteCategorie.alerte:
-        return const Color(0xFFF59E0B);
+        return AppColors.warning;
     }
   }
 

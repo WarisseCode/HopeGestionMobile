@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../data/auth_repository.dart';
 import '../widgets/auth_widgets.dart';
 
@@ -15,7 +16,7 @@ class OfflineScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF7F5),
+      backgroundColor: kAuthBackground,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -28,7 +29,7 @@ class OfflineScreen extends StatelessWidget {
                 Icon(
                   Icons.wifi_off_rounded,
                   size: 40,
-                  color: kDark.withValues(alpha: 0.35),
+                  color: kAuthText.withValues(alpha: 0.35),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -37,16 +38,17 @@ class OfflineScreen extends StatelessWidget {
                   style: GoogleFonts.syne(
                     fontSize: 19,
                     fontWeight: FontWeight.w700,
-                    color: kDark,
+                    color: kAuthText,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Vérifiez votre connexion internet, puis réessayez.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.ibmPlexSans(
+                  style: TextStyle(
+                    fontFamily: AppTypography.fontFamily,
                     fontSize: 13,
-                    color: kDark.withValues(alpha: 0.55),
+                    color: kAuthText.withValues(alpha: 0.55),
                     height: 1.5,
                   ),
                 ),
@@ -57,7 +59,7 @@ class OfflineScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () => AuthRepository.instance.retry(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kTeal,
+                      backgroundColor: kAuthPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -66,7 +68,8 @@ class OfflineScreen extends StatelessWidget {
                     ),
                     child: Text(
                       'Réessayer',
-                      style: GoogleFonts.ibmPlexSans(
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
