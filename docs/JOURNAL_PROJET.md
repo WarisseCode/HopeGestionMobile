@@ -1158,7 +1158,7 @@ session/projet que le chantier est piloté.
 
 ### T-073 : Charte graphique bleue (palette claire/sombre) et police DejaVu Sans auto-hébergée
 - **Date** : 2026-10-09
-- **Statut** : Terminée
+- **Statut** : Modifiée (voir T-075)
 - **Type** : Fonctionnalité
 - **Description** : remplacement de la palette sarcelle par la charte (Bleu profond `#0C3958`, Bleu Hope `#088FE1`, Noir texte `#151B20`, Blanc, Bleu pâle `#EDF6FA`, Gris `#F4F6F7`) dans `lightPalette` et `darkPalette`, et suppression des 31 couleurs `Color(0x…)` codées en dur hors thème dans 11 fichiers (hors logo et icône Google). Migration de IBM Plex Sans / Libre Baskerville (google_fonts) vers DejaVu Sans 2.37 locale (Regular + Bold dans `assets/fonts/`, section `fonts:` du pubspec activée), `ThemeData.fontFamily` compris.
 - **Fichiers touchés** : `pubspec.yaml`, `assets/fonts/DejaVuSans.ttf`, `assets/fonts/DejaVuSans-Bold.ttf`, `assets/fonts/DejaVuSans-LICENSE.txt` (créés), `lib/core/theme/app_colors.dart`, `lib/core/theme/app_typography.dart`, `lib/core/theme/app_theme.dart`, `lib/features/auth/widgets/auth_widgets.dart`, `lib/features/auth/screens/{login,register,verify_email,offline,unsupported_role}_screen.dart`, `lib/features/auth/screens/auth_gate.dart`, `lib/features/onboarding/screens/onboarding_screen.dart`, `lib/features/finances/widgets/finances_balance_card.dart`, `lib/features/dashboard/widgets/dashboard_flux_chart.dart`, `lib/features/notifications/models/alerte.dart`.
@@ -1179,7 +1179,7 @@ session/projet que le chantier est piloté.
 
 ### T-074 : Titres Syne migrés vers DejaVu Sans et contraste du texte sur `primary` en mode sombre
 - **Date** : 2026-10-09
-- **Statut** : Terminée
+- **Statut** : Modifiée (voir T-075)
 - **Type** : Correction
 - **Description** :
   - *Migration Syne → DejaVu Sans* : les 6 titres d'écran encore en `GoogleFonts.syne` (login, register, verify_email, offline, unsupported_role, titre des pages d'onboarding) passent à `TextStyle(fontFamily: AppTypography.fontFamily, ...)` (même modèle que T-073), sans changer les autres propriétés. Les 4 appels Syne du logo-texte « Hope » + « Gestion » sont conservés : 2 dans `AuthLogo` et 2 dans la barre du haut de l'onboarding. L'import `google_fonts` est retiré des 5 écrans d'auth, où il ne sert plus.
@@ -1193,3 +1193,21 @@ session/projet que le chantier est piloté.
   - Toujours pas d'émulateur (`flutter devices` : Windows, Chrome, Edge). J'ai rendu des captures PNG avant/après dans un widget test temporaire (login, onboarding, boutons Encaisser/Dépense, en-tête et barre de navigation du stepper, en clair et en sombre), je les ai regardées une par une, puis j'ai supprimé le test. Syne n'est pas chargé en test, d'où les blocs sur le logo.
   - Revue Codex (`codex exec -s read-only`, diff sur stdin) : une seule remarque, sur l'anneau blanc d'`avatar_picker`. Écartée, car ce n'est pas du texte sur `primary` et c'est hors périmètre. Codex n'a donné aucun ratio. J'ai recalculé les ratios moi-même en Python (WCAG) : 1,85 / 6,51 / 12,06.
   - `flutter analyze` : aucun problème. `flutter test` : 628 réussis avant, 628 après. Pas de commit.
+
+### T-075 : Logo image `hope_logo_compact.png` à la place du logo-texte (auth et onboarding), retrait de `google_fonts`
+- **Date** : 2026-10-10
+- **Statut** : Terminée
+- **Type** : Fonctionnalité
+- **Description** : `AuthLogo` (5 écrans d'auth) affiche désormais `Image.asset('assets/images/hope_logo_compact.png')` en 280 × 147 px (ratio du fichier 1140 × 600), avec une zone de protection verticale de 1/4 de la hauteur (≈ 37 px) via `Padding`. La barre du haut de l'onboarding remplace sa copie du logo-texte par la même image, hauteur 40 px (≈ 76 px de large) avec `Padding` de 10 px sur tous les côtés. `kTeal`, `kDark`, `_logoTeal`, `_logoDark`, les imports `google_fonts` et le paquet `google_fonts` (pubspec) sont retirés.
+- **Fichiers touchés** : `lib/features/auth/widgets/auth_widgets.dart`, `lib/features/onboarding/screens/onboarding_screen.dart`, `pubspec.yaml`, `pubspec.lock`, `docs/JOURNAL_PROJET.md`.
+- **Décisions & justifications** :
+  - 280 px respecte la largeur minimale de la charte. Elle tient sur un téléphone de 360 px, y compris sur `offline` / `unsupported_role` (marge de 32 px, soit 296 px disponibles). Pour cette raison, la zone de protection n'est appliquée que verticalement : une marge latérale de 37 px ferait passer la largeur sous 280 px sur ces deux écrans, alors que le logo est déjà centré seul sur sa ligne. Si le parent est plus étroit, l'image se réduit en gardant son ratio, sans débordement.
+  - Onboarding : 280 px est impossible dans la barre du haut à côté de « Passer » (320 px utiles). J'ai retenu une version réduite (40 px de haut). Le chemin de l'asset est partagé via `AuthLogo.assetPath`.
+  - Plus aucun appel `GoogleFonts.*` dans `lib/` ni `test/`, d'où le retrait du paquet.
+  - Les écrans auth/onboarding restent toujours en mode clair (décision T-073 inchangée).
+  - `hope_logo_icon.png` (1412 × 1412) est disponible pour un futur chantier d'icône de lanceur Android/iOS, hors périmètre ici. Les fichiers d'origine à tirets (`hope-logo-*.png`) sont conservés.
+- **Problèmes rencontrés** :
+  - Toujours pas d'émulateur (`flutter devices` : Edge uniquement). J'ai généré des captures PNG avant/après (login, offline, onboarding) dans un widget test temporaire, que j'ai supprimé ensuite. Le logo s'affiche correctement sur fond transparent.
+  - Revue Codex (`codex exec -s read-only`) : import d'`auth_widgets.dart` déjà présent dans l'onboarding (analyze propre), pas de débordement dans la barre du haut. Seul ajustement : la doc de `AuthLogo.width`, qui était imprécise et a été corrigée.
+  - `flutter analyze` : aucun problème. `flutter test` : 628/628 avant, 628/628 après. Pas de commit.
+- **Remplace / modifie** : T-073 / T-074, partiellement : le logo-texte Syne qu'ils conservaient « pour le chantier logo séparé » est remplacé. Leur objet principal (palette, police, contraste) reste valide ; seule cette partie logo-texte est obsolète, d'où leur statut mis à jour en « Modifiée (voir T-075) ».

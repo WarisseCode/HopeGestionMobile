@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_typography.dart';
 import '../models/onboarding_page_data.dart';
@@ -23,12 +22,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _current = 0;
 
-  // Couleurs du logo-texte de la barre du haut uniquement : inchangées
-  // (chantier logo séparé). Le reste de l'écran utilise kAuthPrimary,
-  // kAuthText et kAuthBackground (palette claire du thème, voir
-  // auth_widgets.dart).
-  static const _logoTeal = kTeal;
-  static const _logoDark = kDark;
+  /// Hauteur du logo compact dans la barre du haut.
+  static const double _logoHeight = 40;
 
   void _goNext() {
     if (_current < OnboardingPageData.pages.length - 1) {
@@ -71,41 +66,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Row(
                 children: [
-                  // Logo
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: _logoTeal,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.home_work_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Hope ',
-                          style: GoogleFonts.syne(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: _logoDark,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'Gestion',
-                          style: GoogleFonts.syne(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: _logoTeal,
-                          ),
-                        ),
-                      ],
+                  // Logo (zone de protection : 1/4 de sa hauteur). La
+                  // largeur de 280 px de la charte ne tient pas dans cette
+                  // barre à côté de « Passer » : version réduite.
+                  Padding(
+                    padding: const EdgeInsets.all(_logoHeight / 4),
+                    child: Image.asset(
+                      AuthLogo.assetPath,
+                      height: _logoHeight,
+                      semanticLabel: 'Hope Gestion',
                     ),
                   ),
                   const Spacer(),
